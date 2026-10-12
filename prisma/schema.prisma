@@ -1,0 +1,558 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  OFFICER
+  SUPERVISOR
+  ACCOUNTING
+  FTO
+  HIGH_COMMAND
+}
+
+enum FundTransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum FundTransactionCategory {
+  FINE_COLLECTION
+  PAYROLL
+  IMPOUND_FEE
+}
+
+enum FtoAssignmentStatus {
+  ACTIVE
+  COMPLETED
+}
+
+enum FtoRecommendation {
+  READY_FOR_SOLO
+  CONTINUE_TRAINING
+  ADDITIONAL_COACHING
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWING
+  CLOSED
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WarrantStatus {
+  ACTIVE
+  SERVED
+  CANCELLED
+}
+
+enum DangerLevel {
+  LOW
+  MEDIUM
+  HIGH
+  EXTREME
+}
+
+enum CallPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum CallStatus {
+  PENDING
+  DISPATCHED
+  ON_SCENE
+  CLEARED
+  CANCELLED
+}
+
+enum InternalAffairsStatus {
+  OPEN
+  INVESTIGATING
+  CLOSED
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ImpoundStatus {
+  IMPOUNDED
+  RELEASED
+}
+
+enum CertificateStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+// ───────── Sĩ quan NCPD ─────────
+model Officer {
+  id                  String    @id @default(cuid())
+  username            String    @unique
+  passwordHash        String
+  fullName            String
+  rank                String    @default("Cadet")
+  badge               String    @unique
+  callsign            String?
+  role                Role      @default(OFFICER)
+  salaryPerHour       Int       @default(0)
+  onDuty              Boolean   @default(false)
+  active              Boolean   @default(true)
+  failedLoginAttempts Int       @default(0)
+  loginLockedUntil    DateTime?
+  sessionVersion      Int       @default(0)
+  createdAt           DateTime  @default(now())
+
+  incidents             Incident[]
+  bolos                 Bolo[]
+  warrants              Warrant[]
+  evidence              Evidence[]
+  announcements         Announcement[]
+  dutyLogs              DutyLog[]
+  reportedCalls         DispatchCall[]        @relation("CallReporter")
+  callAssignments       CallAssignment[]
+  fundTransactions      FundTransaction[]     @relation("FundTransactionCreatedBy")
+  payrollTransactions   FundTransaction[]     @relation("FundTransactionPayrollOfficer")
+  ftoTraineeAssignments FtoAssignment[]       @relation("FtoAssignmentTrainee")
+  ftoTrainerAssignments FtoAssignment[]       @relation("FtoAssignmentTrainer")
+  ftoCreatedAssignments FtoAssignment[]       @relation("FtoAssignmentCreatedBy")
+  ftoTrainingLogs       FtoTrainingLog[]      @relation("FtoTrainingLogAuthor")
+  ftoEvaluations        FtoEvaluation[]       @relation("FtoEvaluationAuthor")
+  internalAffairsCases  InternalAffairsCase[] @relation("InternalAffairsSubject")
+  filedInternalAffairs  InternalAffairsCase[] @relation("InternalAffairsAuthor")
+  auditLogs             AuditLog[]
+  leaveRequests         LeaveRequest[]        @relation("LeaveRequestOfficer")
+  reviewedLeaveRequests LeaveRequest[]        @relation("LeaveRequestReviewer")
+  trafficCitations      TrafficCitation[]
+  impounds              ImpoundRecord[]
+  issuedCertificates    OfficerCertificate[]  @relation("CertificateIssuer")
+  certificates          OfficerCertificate[]  @relation("CertificateRecipient")
+}
+
+model LeaveRequest {
+  id         String             @id @default(cuid())
+  officerId  String
+  officer    Officer            @relation("LeaveRequestOfficer", fields: [officerId], references: [id], onDelete: Restrict)
+  reviewerId String?
+  reviewer   Officer?           @relation("LeaveRequestReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  startDate  DateTime
+  endDate    DateTime
+  reason     String
+  status     LeaveRequestStatus @default(PENDING)
+  reviewNote String?
+  reviewedAt DateTime?
+  createdAt  DateTime           @default(now())
+
+  @@index([officerId, startDate, endDate])
+  @@index([status, startDate])
+}
+
+model InternalAffairsCase {
+  id         String                @id @default(cuid())
+  caseNumber Int                   @unique @default(autoincrement())
+  subjectId  String
+  subject    Officer               @relation("InternalAffairsSubject", fields: [subjectId], references: [id], onDelete: Restrict)
+  authorId   String
+  author     Officer               @relation("InternalAffairsAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  category   String
+  summary    String
+  details    String
+  status     InternalAffairsStatus @default(OPEN)
+  resolution String?
+  createdAt  DateTime              @default(now())
+  updatedAt  DateTime              @updatedAt
+
+  @@index([subjectId, createdAt])
+  @@index([status, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      Officer  @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  action     String
+  entityType String
+  entityId   String
+  summary    String
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model DutyLog {
+  id        String    @id @default(cuid())
+  officerId String
+  officer   Officer   @relation(fields: [officerId], references: [id], onDelete: Cascade)
+  clockIn   DateTime  @default(now())
+  clockOut  DateTime?
+  callsign  String?
+
+  @@index([officerId, clockIn])
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  pinned    Boolean  @default(false)
+  authorId  String
+  author    Officer  @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model DispatchCall {
+  id          String           @id @default(cuid())
+  callNumber  Int              @unique @default(autoincrement())
+  title       String
+  category    String
+  location    String
+  details     String
+  callerName  String?
+  callerPhone String?
+  priority    CallPriority     @default(MEDIUM)
+  status      CallStatus       @default(PENDING)
+  reporterId  String
+  reporter    Officer          @relation("CallReporter", fields: [reporterId], references: [id])
+  assignments CallAssignment[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([status, priority, createdAt])
+}
+
+model CallAssignment {
+  id         String       @id @default(cuid())
+  callId     String
+  call       DispatchCall @relation(fields: [callId], references: [id], onDelete: Cascade)
+  officerId  String
+  officer    Officer      @relation(fields: [officerId], references: [id], onDelete: Cascade)
+  assignedAt DateTime     @default(now())
+
+  @@unique([callId, officerId])
+  @@index([officerId])
+}
+
+// ───────── Công dân / Phương tiện ─────────
+model Citizen {
+  id        String   @id @default(cuid())
+  fullName  String
+  citizenId String   @unique // Số căn cước IC
+  dob       String?
+  phone     String?
+  photoUrl  String?
+  tags      String[] // ví dụ: ["Có súng", "Hay bỏ chạy"]
+  notes     String?
+  createdAt DateTime @default(now())
+
+  vehicles         Vehicle[]
+  fines            FineRecord[]
+  incidents        Incident[]
+  warrants         Warrant[]
+  evidence         Evidence[]
+  trafficCitations TrafficCitation[]
+
+  @@index([fullName])
+}
+
+model Vehicle {
+  id               String            @id @default(cuid())
+  plate            String            @unique
+  model            String
+  color            String
+  ownerId          String?
+  owner            Citizen?          @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  stolen           Boolean           @default(false)
+  notes            String?
+  trafficCitations TrafficCitation[]
+  impounds         ImpoundRecord[]
+}
+
+// ───────── Bộ luật ─────────
+model Charge {
+  id          String  @id @default(cuid())
+  code        String  @unique // ví dụ: PC-101
+  title       String
+  category    String // Giao thông / Hình sự nhẹ / Trọng tội ...
+  fine        Int     @default(0)
+  jailMinutes Int     @default(0)
+  description String?
+  active      Boolean @default(true)
+
+  incidentCharges IncidentCharge[]
+}
+
+// ───────── Báo cáo / Án ─────────
+model Incident {
+  id          String   @id @default(cuid())
+  number      Int      @unique @default(autoincrement())
+  title       String
+  location    String?
+  narrative   String
+  suspectId   String?
+  suspect     Citizen? @relation(fields: [suspectId], references: [id])
+  suspectName String? // fallback nếu chưa có hồ sơ
+  authorId    String
+  author      Officer  @relation(fields: [authorId], references: [id])
+  totalFine   Int      @default(0)
+  totalJail   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  charges  IncidentCharge[]
+  evidence Evidence[]
+  fines    FineRecord[]
+}
+
+model IncidentCharge {
+  id         String   @id @default(cuid())
+  incidentId String
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  chargeId   String
+  charge     Charge   @relation(fields: [chargeId], references: [id])
+  count      Int      @default(1)
+}
+
+// Phạt nguội / chưa nộp
+model FineRecord {
+  id              String           @id @default(cuid())
+  citizenId       String
+  citizen         Citizen          @relation(fields: [citizenId], references: [id], onDelete: Cascade)
+  incidentId      String?
+  incident        Incident?        @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  reason          String
+  amount          Int
+  paid            Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  fundTransaction FundTransaction?
+  trafficCitation TrafficCitation?
+}
+
+model TrafficCitation {
+  id           String     @id @default(cuid())
+  citationNo   Int        @unique @default(autoincrement())
+  fineRecordId String     @unique
+  fineRecord   FineRecord @relation(fields: [fineRecordId], references: [id], onDelete: Restrict)
+  citizenId    String
+  citizen      Citizen    @relation(fields: [citizenId], references: [id], onDelete: Restrict)
+  vehicleId    String?
+  vehicle      Vehicle?   @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  officerId    String
+  officer      Officer    @relation(fields: [officerId], references: [id], onDelete: Restrict)
+  location     String?
+  createdAt    DateTime   @default(now())
+
+  @@index([citizenId, createdAt])
+  @@index([vehicleId, createdAt])
+}
+
+model ImpoundRecord {
+  id               String            @id @default(cuid())
+  vehicleId        String?
+  vehicle          Vehicle?          @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  plate            String
+  reason           String
+  retrievalFee     Int               @default(0)
+  status           ImpoundStatus     @default(IMPOUNDED)
+  officerId        String
+  officer          Officer           @relation(fields: [officerId], references: [id], onDelete: Restrict)
+  createdAt        DateTime          @default(now())
+  releasedAt       DateTime?
+  releasedById     String?
+  releaseNote      String?
+  fundTransactions FundTransaction[]
+
+  @@index([plate, status])
+  @@index([status, createdAt])
+}
+
+model OfficerCertificate {
+  id            String            @id @default(cuid())
+  certificateNo Int               @unique @default(autoincrement())
+  officerId     String
+  officer       Officer           @relation("CertificateRecipient", fields: [officerId], references: [id], onDelete: Restrict)
+  issuerId      String
+  issuer        Officer           @relation("CertificateIssuer", fields: [issuerId], references: [id], onDelete: Restrict)
+  title         String
+  description   String?
+  status        CertificateStatus @default(ACTIVE)
+  issuedAt      DateTime          @default(now())
+  expiresAt     DateTime?
+
+  @@index([officerId, status])
+}
+
+model FundTransaction {
+  id               String                  @id @default(cuid())
+  type             FundTransactionType
+  category         FundTransactionCategory
+  amount           Int
+  description      String
+  fineRecordId     String?                 @unique
+  fineRecord       FineRecord?             @relation(fields: [fineRecordId], references: [id], onDelete: SetNull)
+  impoundRecordId  String?
+  impoundRecord    ImpoundRecord?          @relation(fields: [impoundRecordId], references: [id], onDelete: SetNull)
+  payrollOfficerId String?
+  payrollOfficer   Officer?                @relation("FundTransactionPayrollOfficer", fields: [payrollOfficerId], references: [id], onDelete: SetNull)
+  payrollPeriod    String?
+  createdById      String
+  createdBy        Officer                 @relation("FundTransactionCreatedBy", fields: [createdById], references: [id])
+  createdAt        DateTime                @default(now())
+
+  @@unique([payrollOfficerId, payrollPeriod])
+  @@index([createdAt])
+  @@index([category, payrollPeriod])
+  @@index([impoundRecordId])
+}
+
+model FtoAssignment {
+  id           String              @id @default(cuid())
+  traineeId    String
+  trainee      Officer             @relation("FtoAssignmentTrainee", fields: [traineeId], references: [id], onDelete: Restrict)
+  trainerId    String
+  trainer      Officer             @relation("FtoAssignmentTrainer", fields: [trainerId], references: [id], onDelete: Restrict)
+  assignedById String
+  assignedBy   Officer             @relation("FtoAssignmentCreatedBy", fields: [assignedById], references: [id], onDelete: Restrict)
+  status       FtoAssignmentStatus @default(ACTIVE)
+  notes        String?
+  assignedAt   DateTime            @default(now())
+  completedAt  DateTime?
+  trainingLogs FtoTrainingLog[]
+  evaluations  FtoEvaluation[]
+
+  @@index([traineeId, status])
+  @@index([trainerId, status])
+}
+
+model FtoTrainingLog {
+  id           String        @id @default(cuid())
+  assignmentId String
+  assignment   FtoAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       Officer       @relation("FtoTrainingLogAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  sessionDate  DateTime      @default(now())
+  topic        String
+  notes        String
+  createdAt    DateTime      @default(now())
+
+  @@index([assignmentId, sessionDate])
+}
+
+model FtoEvaluation {
+  id               String            @id @default(cuid())
+  assignmentId     String
+  assignment       FtoAssignment     @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  authorId         String
+  author           Officer           @relation("FtoEvaluationAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+  evaluatedAt      DateTime          @default(now())
+  radioScore       Int
+  procedureScore   Int
+  safetyScore      Int
+  judgmentScore    Int
+  recommendation   FtoRecommendation
+  strengths        String
+  improvementAreas String
+  createdAt        DateTime          @default(now())
+
+  @@index([assignmentId, evaluatedAt])
+}
+
+// ───────── Bằng chứng ─────────
+model Evidence {
+  id         String    @id @default(cuid())
+  locker     String // Mã tủ đồ
+  items      String // mỗi dòng một vật phẩm
+  mediaUrl   String?
+  incidentId String?
+  incident   Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  citizenId  String?
+  citizen    Citizen?  @relation(fields: [citizenId], references: [id], onDelete: SetNull)
+  officerId  String
+  officer    Officer   @relation(fields: [officerId], references: [id])
+  createdAt  DateTime  @default(now())
+}
+
+// ───────── Tác chiến ─────────
+model Bolo {
+  id          String   @id @default(cuid())
+  kind        String // Xe / Đối tượng
+  description String
+  plate       String?
+  lastSeen    String?
+  active      Boolean  @default(true)
+  authorId    String
+  author      Officer  @relation(fields: [authorId], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+model Warrant {
+  id         String        @id @default(cuid())
+  citizenId  String?
+  citizen    Citizen?      @relation(fields: [citizenId], references: [id])
+  targetName String // tên hiển thị (công khai)
+  reason     String
+  danger     DangerLevel   @default(MEDIUM)
+  bounty     Int           @default(0)
+  status     WarrantStatus @default(ACTIVE)
+  isPublic   Boolean       @default(true)
+  authorId   String
+  author     Officer       @relation(fields: [authorId], references: [id])
+  createdAt  DateTime      @default(now())
+}
+
+// ───────── Cổng công dân ─────────
+model PublicReport {
+  id           String       @id @default(cuid())
+  trackingCode String       @unique
+  reporterName String
+  phone        String?
+  title        String
+  description  String
+  location     String?
+  evidenceUrl  String?
+  status       ReportStatus @default(PENDING)
+  createdAt    DateTime     @default(now())
+}
+
+model Application {
+  id                              String            @id @default(cuid())
+  trackingCode                    String            @unique
+  fullName                        String
+  discord                         String
+  age                             Int
+  experience                      String
+  reason                          String
+  ocName                          String?
+  gender                          String?
+  priorService                    String?
+  roleplayScenario                String?
+  careerGoals                     String?
+  strengthsWeaknesses             String?
+  activityHours                   String?
+  minimumDutyHours                String?
+  trainingCommitment              Boolean           @default(false)
+  rulesCommitment                 Boolean           @default(false)
+  conductCommitment               Boolean           @default(false)
+  trainingCompletionCommitment    Boolean           @default(false)
+  earlyDeparturePenaltyCommitment Boolean           @default(false)
+  applicantDeclaration            Boolean           @default(false)
+  status                          ApplicationStatus @default(PENDING)
+  reviewNote                      String?
+  createdAt                       DateTime          @default(now())
+}
