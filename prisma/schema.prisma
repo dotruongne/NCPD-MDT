@@ -114,6 +114,7 @@ model Officer {
   salaryPerHour       Int       @default(0)
   onDuty              Boolean   @default(false)
   active              Boolean   @default(true)
+  mustChangePassword  Boolean   @default(true)
   failedLoginAttempts Int       @default(0)
   loginLockedUntil    DateTime?
   sessionVersion      Int       @default(0)

@@ -40,6 +40,7 @@ export async function login(_: { error?: string } | null, fd: FormData) {
     });
   }
   await createSession(officer.id);
+  if (officer.mustChangePassword) redirect("/first-login-password");
   redirect("/mdt");
 }
 

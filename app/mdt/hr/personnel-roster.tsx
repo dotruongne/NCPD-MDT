@@ -201,7 +201,7 @@ function OfficerCard({
             <form action={passwordAction} ref={passwordForm} className="space-y-3 border-t border-line/70 p-3">
               <input type="hidden" name="id" value={officer.id} />
               <p className="text-xs leading-relaxed text-slate-400">
-                Đặt mật khẩu mới sẽ đăng xuất nhân viên khỏi mọi thiết bị.
+                Mật khẩu này chỉ dùng tạm: nhân viên phải tạo mật khẩu riêng ngay sau lần đăng nhập kế tiếp.
               </p>
               <label className="block space-y-1 text-xs text-slate-400">
                 Mật khẩu mới
@@ -268,11 +268,11 @@ function CreateOfficerForm() {
         <input name="rank" defaultValue="Cadet" maxLength={80} className="input py-2 text-sm" required />
       </label>
       <label className="space-y-1 text-xs text-slate-400">
-        Mật khẩu khởi tạo
+        Mật khẩu tạm
         <input name="password" type="password" autoComplete="new-password" minLength={12} maxLength={128} className="input py-2 text-sm" required />
       </label>
       <div className="space-y-2 sm:col-span-2 xl:col-span-5">
-        <p className="text-[11px] leading-relaxed text-slate-500">Mật khẩu tối thiểu 12 ký tự, có chữ hoa, chữ thường và số.</p>
+        <p className="text-[11px] leading-relaxed text-slate-500">Tối thiểu 12 ký tự, có chữ hoa, chữ thường và số. Nhân viên bắt buộc đổi sau lần đăng nhập đầu tiên.</p>
         <ActionFeedback state={state} />
         <SubmitButton className="btn btn-neon min-h-10 w-full px-4 text-xs font-semibold sm:w-auto">
           <UserPlus className="mr-2 inline h-4 w-4" aria-hidden="true" /> Tạo tài khoản nhân viên

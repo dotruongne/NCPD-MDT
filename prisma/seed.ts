@@ -15,6 +15,7 @@ async function main() {
       rank: "Chief of Police",
       badge: "001",
       role: "HIGH_COMMAND",
+      mustChangePassword: true,
     },
   });
 

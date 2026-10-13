@@ -44,9 +44,10 @@ export async function getOfficer() {
   }
 }
 
-export async function requireOfficer() {
+export async function requireOfficer({ allowPasswordChange = false }: { allowPasswordChange?: boolean } = {}) {
   const o = await getOfficer();
   if (!o) redirect("/login");
+  if (o.mustChangePassword && !allowPasswordChange) redirect("/first-login-password");
   return o;
 }
 

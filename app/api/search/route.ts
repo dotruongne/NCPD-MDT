@@ -5,7 +5,9 @@ import { getOfficer } from "@/lib/auth";
 // Global search (Ctrl+K): công dân theo Tên/Căn cước/SĐT, xe theo biển số.
 export async function GET(req: Request) {
   const officer = await getOfficer();
-  if (!officer) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  if (!officer || officer.mustChangePassword) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
 
   const q = new URL(req.url).searchParams.get("q")?.trim() ?? "";
   if (q.length < 2) return NextResponse.json({ citizens: [], vehicles: [] });

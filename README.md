@@ -20,6 +20,7 @@ lib/                            db, auth (JWT cookie + phân quyền), codes (10
 middleware.ts                   Chặn /mdt khi chưa có session
 app/(public)/                   Citizen landing page, city code lookup, recruitment form and legacy redirects
 app/login/                      Đăng nhập sĩ quan
+app/first-login-password/       Bắt buộc tạo mật khẩu riêng ở lần đăng nhập đầu / sau khi cấp lại mật khẩu
 app/mdt/                        Dashboard, database(+citizens/[id]), personnel(+[id]), dispatch, reports(+new), ops, traffic, leave, hr, internal-affairs, audit, settings, departments (+ actions.ts)
 app/api/search/route.ts         Global Search Ctrl+K
 components/                     mdt-shell (tab, compact, Ctrl+K), report-builder (tính phạt, nháp, Discord), ui
@@ -37,6 +38,7 @@ components/                     mdt-shell (tab, compact, Ctrl+K), report-builder
 - Phạt giao thông nhanh tạo FineRecord để khoản nộp đi vào sổ quỹ hiện có; khoản phí lấy xe được ghi vào sổ quỹ khi giải phóng xe.
 - FTO/High Command/Deputy Chief cấp và quản lý chứng chỉ; đánh giá FTO kết luận đạt tự cấp chứng chỉ hoàn thành đào tạo cơ bản.
 - Bảo mật tài khoản: 5 lần đăng nhập sai khóa 15 phút; đổi mật khẩu hoặc thu hồi phiên sẽ vô hiệu hóa các token đăng nhập hiện hữu.
+- Sau khi cập nhật schema, mọi tài khoản hiện có và tài khoản mới sẽ được yêu cầu đổi mật khẩu ở lần đăng nhập kế tiếp; High Command đặt lại mật khẩu cũng bật lại yêu cầu này. Chạy `npx prisma db push` để áp dụng.
 - Dispatch: mọi sĩ quan có thể ghi nhận cuộc gọi; Supervisor trở lên có thể điều phối units đang On-Duty và cập nhật trạng thái.
 
 ## Ghi chú

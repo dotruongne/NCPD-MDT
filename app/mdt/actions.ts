@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { destroySession, requireOfficer, requirePersonnelManager, requireRole } from "@/lib/auth";
+import { createSession, destroySession, requireOfficer, requirePersonnelManager, requireRole } from "@/lib/auth";
 import { hasFinanceAccess, hasFtoAccess, hasPersonnelManagement } from "@/lib/roles";
 import { dutyHoursInPeriod } from "@/lib/utils";
 import { auditedMutation, recordAudit } from "@/lib/audit";
@@ -341,6 +341,7 @@ export async function resetOfficerPassword(_previousState: PersonnelActionState,
       where: { id },
       data: {
         passwordHash: await bcrypt.hash(newPassword, 12),
+        mustChangePassword: true,
         sessionVersion: { increment: 1 },
         failedLoginAttempts: 0,
         loginLockedUntil: null,
@@ -360,6 +361,54 @@ export async function resetOfficerPassword(_previousState: PersonnelActionState,
   revalidatePath("/mdt/hr");
   revalidatePath("/mdt/audit");
   return { status: "success", message: "Đã đặt lại mật khẩu; các phiên đăng nhập cũ đã bị thu hồi." };
+}
+
+export async function completeRequiredPasswordChange(
+  _previousState: PersonnelActionState,
+  fd: FormData,
+): Promise<PersonnelActionState> {
+  const officer = await requireOfficer({ allowPasswordChange: true });
+  if (!officer.mustChangePassword) return personnelError("Tài khoản không cần cập nhật mật khẩu.");
+
+  const newPassword = String(fd.get("newPassword") ?? "");
+  const confirmation = String(fd.get("confirmation") ?? "");
+  if (newPassword.length < 12 || newPassword.length > 128 || !/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword) || !/\d/.test(newPassword)) {
+    return personnelError("Mật khẩu cần tối thiểu 12 ký tự, gồm chữ hoa, chữ thường và số.");
+  }
+  if (newPassword !== confirmation) return personnelError("Xác nhận mật khẩu không khớp.");
+  if (await bcrypt.compare(newPassword, officer.passwordHash)) {
+    return personnelError("Mật khẩu mới phải khác mật khẩu tạm thời hiện tại.");
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  const updated = await db.$transaction(async (tx) => {
+    const changed = await tx.officer.updateMany({
+      where: { id: officer.id, active: true, mustChangePassword: true, sessionVersion: officer.sessionVersion },
+      data: {
+        passwordHash,
+        mustChangePassword: false,
+        sessionVersion: { increment: 1 },
+        failedLoginAttempts: 0,
+        loginLockedUntil: null,
+      },
+    });
+    if (!changed.count) return false;
+
+    await recordAudit(tx, {
+      actorId: officer.id,
+      action: "UPDATE",
+      entityType: "OfficerSecurity",
+      entityId: officer.id,
+      summary: "Hoàn tất đổi mật khẩu bắt buộc; thu hồi phiên cũ.",
+    });
+    return true;
+  });
+  if (!updated) return personnelError("Phiên tài khoản đã thay đổi. Đăng nhập lại để tiếp tục.");
+
+  await createSession(officer.id);
+  revalidatePath("/mdt");
+  revalidatePath("/mdt/audit");
+  return { status: "success", message: "Mật khẩu đã cập nhật. Đang mở hệ thống..." };
 }
 
 export async function changePassword(fd: FormData) {
@@ -930,6 +979,7 @@ export async function createOfficer(_previousState: PersonnelActionState, fd: Fo
       badge,
       rank,
       role: "OFFICER",
+      mustChangePassword: true,
     } });
     return { result: created, entityId: created.id, summary: `Tạo tài khoản nhân sự cho ${created.fullName} (#${created.badge}).` };
   });
