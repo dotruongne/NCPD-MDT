@@ -1,7 +1,6 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -12,6 +11,13 @@ import { dutyHoursInPeriod } from "@/lib/utils";
 import { auditedMutation, recordAudit } from "@/lib/audit";
 
 const s = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
+type PersonnelActionState = { status: "success" | "error"; message: string } | null;
+const personnelError = (message: string): PersonnelActionState => ({ status: "error", message });
+const PERSONNEL_ROLES = ["OFFICER", "SUPERVISOR", "ACCOUNTING", "FTO", "HIGH_COMMAND"] as const;
+
+function isPersonnelRole(role: string): role is (typeof PERSONNEL_ROLES)[number] {
+  return PERSONNEL_ROLES.some((candidate) => candidate === role);
+}
 
 function parseCalendarDate(value: string, field: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error(`${field} không hợp lệ.`);
@@ -258,36 +264,34 @@ export async function updateOfficerCertificateStatus(fd: FormData) {
 }
 
 // ───────── Bảo mật tài khoản ─────────
-export async function deleteOfficerAccount(fd: FormData) {
+export async function deleteOfficerAccount(_previousState: PersonnelActionState, fd: FormData): Promise<PersonnelActionState> {
   const actor = await requirePersonnelManager();
   const id = s(fd, "id");
-  if (!id) throw new Error("Thiếu mã nhân viên.");
-  if (id === actor.id) throw new Error("Không thể xóa tài khoản đang đăng nhập.");
+  if (!id) return personnelError("Thiếu mã nhân viên.");
+  if (id === actor.id) return personnelError("Không thể xóa tài khoản đang đăng nhập.");
 
-  await db.$transaction(async (tx) => {
+  const error = await db.$transaction(async (tx) => {
     const target = await tx.officer.findUnique({
       where: { id },
-      select: { id: true, fullName: true, badge: true, role: true, onDuty: true, active: true },
+      select: { id: true, fullName: true, badge: true, role: true, active: true },
     });
-    if (!target) throw new Error("Không tìm thấy hồ sơ nhân viên.");
-    if (target.onDuty) throw new Error("Không thể xóa tài khoản đang trực. Kết thúc ca trực trước khi xóa.");
+    if (!target) return personnelError("Không tìm thấy hồ sơ nhân viên.");
     if (target.role === "HIGH_COMMAND" && actor.role !== "HIGH_COMMAND") {
-      throw new Error("Chỉ High Command mới được xóa tài khoản cấp cao.");
+      return personnelError("Chỉ High Command mới được xóa tài khoản cấp cao.");
     }
-    if (!target.active) throw new Error("Tài khoản nhân viên này đã bị vô hiệu hóa.");
+    if (!target.active) return personnelError("Tài khoản nhân viên này đã bị vô hiệu hóa.");
 
     const deactivated = await tx.officer.updateMany({
-      where: { id, active: true, onDuty: false },
+      where: { id, active: true },
       data: {
         active: false,
         onDuty: false,
-        passwordHash: await bcrypt.hash(randomBytes(32).toString("hex"), 12),
         sessionVersion: { increment: 1 },
         failedLoginAttempts: 0,
         loginLockedUntil: null,
       },
     });
-    if (!deactivated.count) throw new Error("Tài khoản vừa được thay đổi. Tải lại trang rồi thử lại.");
+    if (!deactivated.count) return personnelError("Tài khoản vừa được thay đổi. Tải lại trang rồi thử lại.");
 
     await tx.dutyLog.updateMany({
       where: { officerId: id, clockOut: null },
@@ -301,11 +305,61 @@ export async function deleteOfficerAccount(fd: FormData) {
       entityId: id,
       summary: `Xóa tài khoản nhân sự ${target.fullName} (#${target.badge}).`,
     });
+    return null;
   });
+  if (error) return error;
 
   revalidatePath("/mdt/hr");
   revalidatePath("/mdt");
   revalidatePath("/mdt/personnel");
+  revalidatePath("/mdt/departments");
+  return { status: "success", message: "Đã vô hiệu hóa tài khoản; lịch sử công tác được giữ lại." };
+}
+
+export async function resetOfficerPassword(_previousState: PersonnelActionState, fd: FormData): Promise<PersonnelActionState> {
+  const actor = await requirePersonnelManager();
+  const id = s(fd, "id");
+  const newPassword = String(fd.get("newPassword") ?? "");
+  const confirmation = String(fd.get("confirmation") ?? "");
+  if (!id) return personnelError("Thiếu mã nhân viên.");
+  if (newPassword.length < 12 || newPassword.length > 128 || !/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword) || !/\d/.test(newPassword)) {
+    return personnelError("Mật khẩu cần tối thiểu 12 ký tự, gồm chữ hoa, chữ thường và số.");
+  }
+  if (newPassword !== confirmation) return personnelError("Xác nhận mật khẩu không khớp.");
+
+  const error = await db.$transaction(async (tx) => {
+    const target = await tx.officer.findUnique({
+      where: { id },
+      select: { id: true, fullName: true, badge: true, role: true },
+    });
+    if (!target) return personnelError("Không tìm thấy hồ sơ nhân viên.");
+    if (target.id === actor.id) return personnelError("Dùng trang Bảo mật tài khoản để đổi mật khẩu của chính bạn.");
+    if (target.role === "HIGH_COMMAND" && actor.role !== "HIGH_COMMAND") {
+      return personnelError("Chỉ High Command mới được đặt lại mật khẩu tài khoản cấp cao.");
+    }
+    await tx.officer.update({
+      where: { id },
+      data: {
+        passwordHash: await bcrypt.hash(newPassword, 12),
+        sessionVersion: { increment: 1 },
+        failedLoginAttempts: 0,
+        loginLockedUntil: null,
+      },
+    });
+    await recordAudit(tx, {
+      actorId: actor.id,
+      action: "UPDATE",
+      entityType: "OfficerSecurity",
+      entityId: id,
+      summary: `Đặt lại mật khẩu tài khoản ${target.fullName} (#${target.badge}); thu hồi toàn bộ phiên đăng nhập.`,
+    });
+    return null;
+  });
+  if (error) return error;
+
+  revalidatePath("/mdt/hr");
+  revalidatePath("/mdt/audit");
+  return { status: "success", message: "Đã đặt lại mật khẩu; các phiên đăng nhập cũ đã bị thu hồi." };
 }
 
 export async function changePassword(fd: FormData) {
@@ -844,41 +898,75 @@ export async function updateDispatchCallStatus(fd: FormData) {
 }
 
 // ───────── Nội bộ (High Command) ─────────
-export async function createOfficer(fd: FormData) {
+export async function createOfficer(_previousState: PersonnelActionState, fd: FormData): Promise<PersonnelActionState> {
   const actor = await requirePersonnelManager();
   const username = s(fd, "username").toLowerCase();
-  const password = s(fd, "password");
-  if (!username || password.length < 6) return;
+  const password = String(fd.get("password") ?? "");
+  const fullName = s(fd, "fullName");
+  const badge = s(fd, "badge");
+  const rank = s(fd, "rank") || "Cadet";
+  if (!/^[a-z0-9._-]{3,40}$/.test(username)) {
+    return personnelError("Tên tài khoản cần từ 3–40 ký tự: chữ thường, số, dấu chấm, gạch ngang hoặc gạch dưới.");
+  }
+  if (fullName.length < 2 || fullName.length > 100) return personnelError("Họ tên cần từ 2 đến 100 ký tự.");
+  if (!badge || badge.length > 40) return personnelError("Badge không hợp lệ (tối đa 40 ký tự).");
+  if (!rank || rank.length > 80) return personnelError("Cấp bậc không hợp lệ.");
+  if (password.length < 12 || password.length > 128 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
+    return personnelError("Mật khẩu cần tối thiểu 12 ký tự, gồm chữ hoa, chữ thường và số.");
+  }
+
+  const existing = await db.officer.findFirst({
+    where: { OR: [{ username }, { badge }] },
+    select: { username: true, badge: true },
+  });
+  if (existing?.username === username) return personnelError("Tên tài khoản này đã được sử dụng.");
+  if (existing?.badge === badge) return personnelError("Badge này đã được sử dụng.");
+
   await auditedMutation(actor.id, "CREATE", "Officer", async (tx) => {
     const created = await tx.officer.create({ data: {
       username,
-      passwordHash: await bcrypt.hash(password, 10),
-      fullName: s(fd, "fullName"),
-      badge: s(fd, "badge"),
-      rank: s(fd, "rank") || "Cadet",
+      passwordHash: await bcrypt.hash(password, 12),
+      fullName,
+      badge,
+      rank,
       role: "OFFICER",
     } });
     return { result: created, entityId: created.id, summary: `Tạo tài khoản nhân sự cho ${created.fullName} (#${created.badge}).` };
   });
   revalidatePath("/mdt/hr");
+  return { status: "success", message: `Đã tạo tài khoản nhân viên ${fullName}.` };
 }
 
-export async function updateOfficer(fd: FormData) {
+export async function updateOfficer(_previousState: PersonnelActionState, fd: FormData): Promise<PersonnelActionState> {
   const me = await requirePersonnelManager();
   const id = s(fd, "id");
-  const role = s(fd, "role") as "OFFICER" | "SUPERVISOR" | "ACCOUNTING" | "FTO" | "HIGH_COMMAND";
+  const role = s(fd, "role");
+  const rank = s(fd, "rank");
+  const badge = s(fd, "badge");
   const salaryPerHour = Number(s(fd, "salaryPerHour"));
+  if (!id) return personnelError("Thiếu mã nhân viên.");
+  if (!isPersonnelRole(role)) {
+    return personnelError("Phân quyền không hợp lệ.");
+  }
+  if (!rank || rank.length > 80) return personnelError("Cấp bậc không hợp lệ.");
+  if (!badge || badge.length > 40) return personnelError("Badge không hợp lệ.");
   if (!Number.isSafeInteger(salaryPerHour) || salaryPerHour < 0) {
-    throw new Error("Mức lương theo giờ phải là số nguyên từ 0 trở lên.");
+    return personnelError("Mức lương theo giờ phải là số nguyên từ 0 trở lên.");
   }
   // Không cho tự hạ quyền / tự khóa chính mình để tránh mất toàn bộ quyền quản trị.
   const self = id === me.id;
+  const existingBadge = await db.officer.findFirst({
+    where: { badge, id: { not: id } },
+    select: { id: true },
+  });
+  if (existingBadge) return personnelError("Badge này đã được sử dụng bởi nhân viên khác.");
+
   await auditedMutation(me.id, "UPDATE", "Officer", async (tx) => {
     const target = await tx.officer.findUnique({ where: { id }, select: { fullName: true, badge: true } });
-    if (!target) throw new Error("Không tìm thấy hồ sơ sĩ quan.");
+    if (!target) throw new Error("Không tìm thấy hồ sơ nhân viên.");
     await tx.officer.update({ where: { id }, data: {
-      rank: s(fd, "rank"),
-      badge: s(fd, "badge"),
+      rank,
+      badge,
       salaryPerHour,
       role: self ? me.role : role,
       active: self ? true : fd.get("active") === "on",
@@ -888,6 +976,7 @@ export async function updateOfficer(fd: FormData) {
   revalidatePath("/mdt/hr");
   revalidatePath("/mdt");
   revalidatePath("/mdt/departments");
+  return { status: "success", message: "Đã lưu thay đổi hồ sơ nhân viên." };
 }
 
 export async function recordPayrollPayment(fd: FormData) {

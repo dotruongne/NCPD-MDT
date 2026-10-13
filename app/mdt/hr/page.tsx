@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
-import { Users, Clock, UserCheck, ShieldCheck, FileWarning, UserPlus, Check, X, ExternalLink } from "lucide-react";
+import { UserCheck, FileWarning, Check, X, ExternalLink } from "lucide-react";
 import { db } from "@/lib/db";
 import { requireOfficer } from "@/lib/auth";
-import { Badge, Card, Empty, Field, PageTitle } from "@/components/ui";
+import { Badge, Card, Empty, PageTitle } from "@/components/ui";
 import { fmtDate, formatDuration } from "@/lib/utils";
-import { hasPersonnelManagement, OFFICER_RANKS } from "@/lib/roles";
-import { createOfficer, deleteOfficerAccount, reviewApplication, updateOfficer, updateReportStatus } from "../actions";
+import { hasPersonnelManagement } from "@/lib/roles";
+import { reviewApplication, updateReportStatus } from "../actions";
+import PersonnelRoster from "./personnel-roster";
 
 const ASTATUS = {
   PENDING: { label: "Chờ duyệt", tone: "warn" as const, dot: true },
@@ -23,21 +24,38 @@ export default async function HRPage() {
   const me = await requireOfficer();
   if (!hasPersonnelManagement(me.role, me.rank)) redirect("/mdt");
 
-  // Payroll: tổng giờ trong 7 ngày gần nhất
+  // Payroll: tổng giờ trong 7 ngày gần nhất.
   const since = new Date(Date.now() - 7 * 24 * 3600 * 1000);
   const [officers, apps, logs, reports] = await Promise.all([
-    db.officer.findMany({ orderBy: [{ role: "desc" }, { badge: "asc" }] }),
+    db.officer.findMany({
+      select: {
+        id: true,
+        fullName: true,
+        username: true,
+        rank: true,
+        badge: true,
+        callsign: true,
+        role: true,
+        active: true,
+        onDuty: true,
+        salaryPerHour: true,
+      },
+      orderBy: [{ active: "desc" }, { onDuty: "desc" }, { role: "desc" }, { badge: "asc" }],
+    }),
     db.application.findMany({ orderBy: [{ status: "asc" }, { createdAt: "desc" }], take: 40 }),
     db.dutyLog.findMany({ where: { clockIn: { gte: since } } }),
     db.publicReport.findMany({ orderBy: { createdAt: "desc" }, take: 20 }),
   ]);
 
   const now = Date.now();
-  const hours = new Map<string, number>();
+  const hoursMsByOfficer: Record<string, number> = {};
   for (const l of logs) {
     const end = l.clockOut ? l.clockOut.getTime() : now;
-    hours.set(l.officerId, (hours.get(l.officerId) ?? 0) + (end - l.clockIn.getTime()));
+    hoursMsByOfficer[l.officerId] = (hoursMsByOfficer[l.officerId] ?? 0) + (end - l.clockIn.getTime());
   }
+  const hoursByOfficer = Object.fromEntries(
+    Object.entries(hoursMsByOfficer).map(([officerId, duration]) => [officerId, formatDuration(duration)]),
+  );
 
   return (
     <div className="space-y-6">
@@ -48,180 +66,15 @@ export default async function HRPage() {
         Quản lý nội bộ & Nhân sự
       </PageTitle>
 
-      {/* Roster & Payroll Table */}
-      <Card
-        title={`Quân số & Chấm công 7 ngày gần nhất (${officers.length} Sĩ quan)`}
-        icon={<Users className="h-4 w-4 text-neon" />}
-        subtitle="Giờ trực tính tự động từ nút Bắt đầu / Kết thúc On-Duty ở Dashboard"
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[1120px] text-sm">
-            <thead>
-              <tr className="border-b border-line text-left">
-                <th className="th">Sĩ quan & Tài khoản</th>
-                <th className="th">Cấp bậc (Rank)</th>
-                <th className="th">Số hiệu (Badge)</th>
-                <th className="th">Phân quyền</th>
-                <th className="th">Trạng thái</th>
-                <th className="th text-right">Giờ trực</th>
-                <th className="th">Lương / giờ</th>
-                <th className="th text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {officers.map((o) => (
-                <tr
-                  key={o.id}
-                  className="border-b border-line/40 transition hover:bg-panel2/60"
-                >
-                  <td className="td py-2.5">
-                    <p className="font-semibold text-white">{o.fullName}</p>
-                    <p className="font-mono text-xs text-slate-400">
-                      @{o.username}
-                      {o.onDuty && (
-                        <span className="ml-1.5 text-emerald-400 font-bold">
-                          ● ON-DUTY {o.callsign}
-                        </span>
-                      )}
-                    </p>
-                    <form action={updateOfficer} id={`officer-${o.id}`}>
-                      <input type="hidden" name="id" value={o.id} />
-                    </form>
-                  </td>
-                  <td className="td">
-                    <select
-                      form={`officer-${o.id}`}
-                      name="rank"
-                      defaultValue={o.rank}
-                      aria-label={`Cấp bậc của ${o.fullName}`}
-                      className="input w-32 py-1 text-xs"
-                    >
-                      {!OFFICER_RANKS.some((rank) => rank === o.rank) && (
-                        <option value={o.rank}>{o.rank}</option>
-                      )}
-                      {OFFICER_RANKS.map((rank) => (
-                        <option key={rank} value={rank}>{rank}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="td">
-                    <input
-                      form={`officer-${o.id}`}
-                      name="badge"
-                      defaultValue={o.badge}
-                      aria-label={`Số hiệu của ${o.fullName}`}
-                      className="input w-20 py-1 font-mono text-xs text-center"
-                    />
-                  </td>
-                  <td className="td">
-                    <select
-                      form={`officer-${o.id}`}
-                      name="role"
-                      defaultValue={o.role}
-                      aria-label={`Phân quyền của ${o.fullName}`}
-                      className="input w-40 py-1 text-xs"
-                      disabled={o.id === me.id}
-                    >
-                      <option value="OFFICER">Officer</option>
-                      <option value="SUPERVISOR">Supervisor</option>
-                      <option value="ACCOUNTING">Phòng Kế Toán</option>
-                      <option value="FTO">Phòng FTO</option>
-                      <option value="HIGH_COMMAND">High Command</option>
-                    </select>
-                  </td>
-                  <td className="td text-center">
-                    <input
-                      form={`officer-${o.id}`}
-                      type="checkbox"
-                      name="active"
-                      defaultChecked={o.active}
-                      disabled={o.id === me.id}
-                      aria-label={`Trạng thái tài khoản của ${o.fullName}`}
-                      className="rounded"
-                    />
-                  </td>
-                  <td className="td text-right font-mono text-xs font-bold text-neon">
-                    {formatDuration(hours.get(o.id) ?? 0)}
-                  </td>
-                  <td className="td">
-                    <input
-                      form={`officer-${o.id}`}
-                      name="salaryPerHour"
-                      type="number"
-                      min="0"
-                      step="1"
-                      defaultValue={o.salaryPerHour}
-                      aria-label={`Lương mỗi giờ của ${o.fullName}`}
-                      className="input w-28 py-1 text-xs"
-                    />
-                  </td>
-                  <td className="td text-right">
-                    <div className="flex justify-end gap-2">
-                      <button form={`officer-${o.id}`} className="btn btn-neon px-3 py-1 text-xs">
-                        Lưu
-                      </button>
-                      <form action={deleteOfficerAccount} className="inline">
-                        <input type="hidden" name="id" value={o.id} />
-                        <button
-                          type="submit"
-                          className="btn btn-danger px-3 py-1 text-xs"
-                          disabled={o.id === me.id}
-                          aria-label={`Xóa tài khoản của ${o.fullName}`}
-                        >
-                          Xóa
-                        </button>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      <PersonnelRoster
+        officers={officers}
+        hoursByOfficer={hoursByOfficer}
+        currentOfficerId={me.id}
+      />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Create Officer */}
-        <div>
-          <Card
-            title="Thêm sĩ quan mới"
-            icon={<UserPlus className="h-4 w-4 text-neon" />}
-            subtitle="Cấp tài khoản truy cập MDT cho thành viên mới"
-          >
-            <form action={createOfficer} className="space-y-3.5">
-              <Field label="Họ tên IC *" required>
-                <input name="fullName" placeholder="VD: John Connor" className="input" required />
-              </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Tài khoản *" required>
-                  <input name="username" placeholder="jconnor" className="input" required />
-                </Field>
-                <Field label="Badge #" required hint="VD: 104">
-                  <input name="badge" placeholder="104" className="input font-mono" required />
-                </Field>
-              </div>
-              <Field label="Cấp bậc ban đầu">
-                <input name="rank" defaultValue="Cadet" className="input" />
-              </Field>
-              <Field label="Mật khẩu khởi tạo *" required hint="Ít nhất 6 ký tự">
-                <input
-                  name="password"
-                  type="password"
-                  minLength={6}
-                  placeholder="••••••••"
-                  className="input"
-                  required
-                />
-              </Field>
-              <button className="btn btn-neon w-full py-2.5 font-semibold text-xs tracking-wider">
-                TẠO TÀI KHOẢN SĨ QUAN
-              </button>
-            </form>
-          </Card>
-        </div>
-
+      <div className="grid gap-6 xl:grid-cols-2">
         {/* Applications & Public Reports */}
-        <div className="space-y-6 lg:col-span-2">
+        <div className="space-y-6">
           {/* Applications */}
           <Card
             title={`Đơn ứng tuyển Học viện (${apps.length})`}
