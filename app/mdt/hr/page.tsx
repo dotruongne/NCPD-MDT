@@ -5,7 +5,7 @@ import { requireOfficer } from "@/lib/auth";
 import { Badge, Card, Empty, Field, PageTitle } from "@/components/ui";
 import { fmtDate, formatDuration } from "@/lib/utils";
 import { hasPersonnelManagement, OFFICER_RANKS } from "@/lib/roles";
-import { createOfficer, reviewApplication, updateOfficer, updateReportStatus } from "../actions";
+import { createOfficer, deleteOfficerAccount, reviewApplication, updateOfficer, updateReportStatus } from "../actions";
 
 const ASTATUS = {
   PENDING: { label: "Chờ duyệt", tone: "warn" as const, dot: true },
@@ -156,9 +156,22 @@ export default async function HRPage() {
                     />
                   </td>
                   <td className="td text-right">
-                    <button form={`officer-${o.id}`} className="btn btn-neon px-3 py-1 text-xs">
-                      Lưu
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button form={`officer-${o.id}`} className="btn btn-neon px-3 py-1 text-xs">
+                        Lưu
+                      </button>
+                      <form action={deleteOfficerAccount} className="inline">
+                        <input type="hidden" name="id" value={o.id} />
+                        <button
+                          type="submit"
+                          className="btn btn-danger px-3 py-1 text-xs"
+                          disabled={o.id === me.id}
+                          aria-label={`Xóa tài khoản của ${o.fullName}`}
+                        >
+                          Xóa
+                        </button>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               ))}

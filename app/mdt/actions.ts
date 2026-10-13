@@ -1,6 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -257,6 +258,56 @@ export async function updateOfficerCertificateStatus(fd: FormData) {
 }
 
 // ───────── Bảo mật tài khoản ─────────
+export async function deleteOfficerAccount(fd: FormData) {
+  const actor = await requirePersonnelManager();
+  const id = s(fd, "id");
+  if (!id) throw new Error("Thiếu mã nhân viên.");
+  if (id === actor.id) throw new Error("Không thể xóa tài khoản đang đăng nhập.");
+
+  await db.$transaction(async (tx) => {
+    const target = await tx.officer.findUnique({
+      where: { id },
+      select: { id: true, fullName: true, badge: true, role: true, onDuty: true, active: true },
+    });
+    if (!target) throw new Error("Không tìm thấy hồ sơ nhân viên.");
+    if (target.onDuty) throw new Error("Không thể xóa tài khoản đang trực. Kết thúc ca trực trước khi xóa.");
+    if (target.role === "HIGH_COMMAND" && actor.role !== "HIGH_COMMAND") {
+      throw new Error("Chỉ High Command mới được xóa tài khoản cấp cao.");
+    }
+    if (!target.active) throw new Error("Tài khoản nhân viên này đã bị vô hiệu hóa.");
+
+    const deactivated = await tx.officer.updateMany({
+      where: { id, active: true, onDuty: false },
+      data: {
+        active: false,
+        onDuty: false,
+        passwordHash: await bcrypt.hash(randomBytes(32).toString("hex"), 12),
+        sessionVersion: { increment: 1 },
+        failedLoginAttempts: 0,
+        loginLockedUntil: null,
+      },
+    });
+    if (!deactivated.count) throw new Error("Tài khoản vừa được thay đổi. Tải lại trang rồi thử lại.");
+
+    await tx.dutyLog.updateMany({
+      where: { officerId: id, clockOut: null },
+      data: { clockOut: new Date() },
+    });
+
+    await recordAudit(tx, {
+      actorId: actor.id,
+      action: "DELETE",
+      entityType: "OfficerAccount",
+      entityId: id,
+      summary: `Xóa tài khoản nhân sự ${target.fullName} (#${target.badge}).`,
+    });
+  });
+
+  revalidatePath("/mdt/hr");
+  revalidatePath("/mdt");
+  revalidatePath("/mdt/personnel");
+}
+
 export async function changePassword(fd: FormData) {
   const officer = await requireOfficer();
   const currentPassword = String(fd.get("currentPassword") ?? "");
