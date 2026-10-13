@@ -310,6 +310,7 @@ export async function deleteOfficerAccount(_previousState: PersonnelActionState,
   if (error) return error;
 
   revalidatePath("/mdt/hr");
+  revalidatePath("/mdt/hr/recruitment");
   revalidatePath("/mdt");
   revalidatePath("/mdt/personnel");
   revalidatePath("/mdt/departments");
@@ -359,6 +360,7 @@ export async function resetOfficerPassword(_previousState: PersonnelActionState,
   if (error) return error;
 
   revalidatePath("/mdt/hr");
+  revalidatePath("/mdt/hr/recruitment");
   revalidatePath("/mdt/audit");
   return { status: "success", message: "Đã đặt lại mật khẩu; các phiên đăng nhập cũ đã bị thu hồi." };
 }
@@ -984,6 +986,7 @@ export async function createOfficer(_previousState: PersonnelActionState, fd: Fo
     return { result: created, entityId: created.id, summary: `Tạo tài khoản nhân sự cho ${created.fullName} (#${created.badge}).` };
   });
   revalidatePath("/mdt/hr");
+  revalidatePath("/mdt/hr/recruitment");
   return { status: "success", message: `Đã tạo tài khoản nhân viên ${fullName}.` };
 }
 
@@ -1024,6 +1027,7 @@ export async function updateOfficer(_previousState: PersonnelActionState, fd: Fo
     return { result: undefined, entityId: id, summary: `Cập nhật hồ sơ/quyền nhân sự ${target.fullName} (#${target.badge}).` };
   });
   revalidatePath("/mdt/hr");
+  revalidatePath("/mdt/hr/recruitment");
   revalidatePath("/mdt");
   revalidatePath("/mdt/departments");
   return { status: "success", message: "Đã lưu thay đổi hồ sơ nhân viên." };
@@ -1317,6 +1321,7 @@ export async function reviewApplication(fd: FormData) {
     return { result: undefined, entityId: id, summary: `Cập nhật trạng thái hồ sơ ứng tuyển của ${application.fullName}: ${status}.` };
   });
   revalidatePath("/mdt/hr");
+  revalidatePath("/mdt/hr/recruitment");
 }
 
 export async function updateReportStatus(fd: FormData) {
@@ -1333,4 +1338,5 @@ export async function updateReportStatus(fd: FormData) {
     return { result: undefined, entityId: id, summary: `Cập nhật trạng thái báo cáo: ${status}.` };
   });
   revalidatePath("/mdt/hr");
+  revalidatePath("/mdt/hr/reports");
 }

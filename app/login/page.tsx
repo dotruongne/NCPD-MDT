@@ -1,9 +1,10 @@
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
-import { Shield, Lock, User, AlertCircle, ShieldAlert, Radio, MapPin } from "lucide-react";
+import { Shield, Lock, User, ShieldAlert, Radio, MapPin } from "lucide-react";
 import { login } from "./actions";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ToastOnChange } from "@/components/toast-provider";
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -129,17 +130,11 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {state?.error && (
-                <div className="portal-error flex items-start gap-2.5 border p-3 text-xs">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>{state.error}</span>
-                </div>
-              )}
-
               <div className="pt-1">
                 <SubmitButton />
               </div>
             </form>
+            <ToastOnChange eventKey={state} message={state?.error} type="error" title="Đăng nhập thất bại" />
 
             <div className="portal-caution mt-6 border-l-[3px] border-[#b28a35] px-3.5 py-3">
               <div className="portal-caution-title flex items-center gap-2 text-[11px] font-bold">

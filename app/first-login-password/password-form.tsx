@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { ArrowRight, Check, Eye, EyeOff, KeyRound, LockKeyhole, ShieldCheck } from "lucide-react";
 import { completeRequiredPasswordChange } from "@/app/mdt/actions";
+import { ToastOnChange } from "@/components/toast-provider";
 
 type PasswordActionState = { status: "success" | "error"; message: string } | null;
 const INITIAL_STATE: PasswordActionState = null;
@@ -59,6 +60,12 @@ export function FirstLoginPasswordForm({ fullName }: { fullName: string }) {
 
   return (
     <main className="password-gate relative isolate flex min-h-screen items-center justify-center overflow-hidden px-4 py-10 text-slate-100 sm:px-6">
+      <ToastOnChange
+        eventKey={state}
+        message={state?.message}
+        type={state?.status === "success" ? "success" : "error"}
+        title={state?.status === "success" ? "Tài khoản đã được bảo vệ" : "Chưa thể đổi mật khẩu"}
+      />
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
         <div className="password-gate-glow absolute -left-40 -top-40 h-[32rem] w-[32rem] rounded-full bg-sky-500/10 blur-[110px]" />
         <div className="password-gate-glow password-gate-glow-delay absolute -bottom-48 -right-32 h-[34rem] w-[34rem] rounded-full bg-indigo-500/10 blur-[130px]" />
@@ -98,12 +105,9 @@ export function FirstLoginPasswordForm({ fullName }: { fullName: string }) {
           </div>
 
           {state?.status === "success" ? (
-            <div role="status" aria-live="polite" className="mt-8 rounded-xl border border-emerald-300/20 bg-emerald-300/[0.07] p-5">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-300/15 text-emerald-200">
-                <Check className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <p className="mt-4 font-semibold text-emerald-100">Tài khoản đã được bảo vệ</p>
-              <p className="mt-1 text-sm text-slate-400">{state.message}</p>
+            <div className="mt-8 flex items-center gap-3 text-sm text-slate-400">
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-emerald-200/30 border-t-emerald-200 motion-reduce:animate-none" aria-hidden="true" />
+              Đang mở MDT an toàn...
             </div>
           ) : (
             <form action={action} className="mt-7 space-y-5">
@@ -173,12 +177,6 @@ export function FirstLoginPasswordForm({ fullName }: { fullName: string }) {
                   </li>
                 ))}
               </ul>
-
-              {state?.status === "error" && (
-                <p role="alert" aria-live="polite" className="rounded-lg border border-red-300/20 bg-red-300/[0.07] px-3.5 py-3 text-xs leading-relaxed text-red-200">
-                  {state.message}
-                </p>
-              )}
 
               <SubmitButton complete={ready} />
               <p className="text-center text-[11px] leading-relaxed text-slate-500">

@@ -2,9 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Copy, Minus, Plus, Save, Trash2, Check, Search, Scale, FileText, Send } from "lucide-react";
+import { Copy, Minus, Plus, Save, Trash2, Search, Scale, FileText, Send } from "lucide-react";
 import { createIncident } from "@/app/mdt/actions";
 import { money } from "@/lib/utils";
+import { useToast } from "@/components/toast-provider";
 
 type Charge = { id: string; code: string; title: string; category: string; fine: number; jailMinutes: number };
 type CitizenOpt = { id: string; fullName: string; citizenId: string };
@@ -38,10 +39,9 @@ export function ReportBuilder({
   const [chargeQuery, setChargeQuery] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [pending, start] = useTransition();
   const timer = useRef<ReturnType<typeof setTimeout>>();
+  const { showToast } = useToast();
 
   // Khôi phục bản nháp sau khi lỡ F5
   useEffect(() => {
@@ -134,12 +134,10 @@ export function ReportBuilder({
       document.execCommand("copy");
       ta.remove();
     }
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    showToast({ type: "success", title: "Đã sao chép", message: "Bản báo cáo đã được chép vào bộ nhớ tạm." });
   };
 
   const submit = () => {
-    setError(null);
     start(async () => {
       const res = await createIncident({
         title: d.title,
@@ -149,7 +147,7 @@ export function ReportBuilder({
         suspectName: d.suspectName,
         charges: selected.map((c) => ({ id: c.id, count: c.count })),
       });
-      if (!res.ok) return setError(res.error);
+      if (!res.ok) return showToast({ type: "error", title: "Không thể tạo báo cáo", message: res.error });
       try {
         localStorage.removeItem(DRAFT_KEY);
       } catch {}
@@ -387,12 +385,6 @@ export function ReportBuilder({
             </div>
           </div>
 
-          {error && (
-            <div className="rounded-lg border border-danger/50 bg-danger/10 p-3 text-xs text-red-300">
-              {error}
-            </div>
-          )}
-
           {/* Action buttons */}
           <div className="space-y-2 pt-2">
             <button
@@ -400,8 +392,8 @@ export function ReportBuilder({
               onClick={copy}
               className="btn btn-neon w-full py-2.5 font-mono text-xs font-semibold"
             >
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? "ĐÃ COPY VÀO BỘ NHỚ!" : "EXPORT BÁO CÁO DISCORD (MARKDOWN)"}
+              <Copy className="h-4 w-4" />
+              EXPORT BÁO CÁO DISCORD (MARKDOWN)
             </button>
 
             <button

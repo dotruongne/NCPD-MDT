@@ -1,8 +1,9 @@
 "use client";
 
 import { useFormState, useFormStatus } from "react-dom";
-import { AlertCircle, CheckCircle2, Send } from "lucide-react";
+import { CheckCircle2, Send } from "lucide-react";
 import { Field } from "@/components/ui";
+import { ToastOnChange } from "@/components/toast-provider";
 import { submitApplication } from "@/app/(public)/actions";
 
 function SubmitButton() {
@@ -38,11 +39,7 @@ export function RecruitmentApplicationForm() {
 
   return (
     <form action={action} className="space-y-7">
-      {state?.error && (
-        <div className="portal-error flex items-start gap-2 border p-3 text-sm" role="alert">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{state.error}
-        </div>
-      )}
+      <ToastOnChange eventKey={state} message={state?.error} type="error" title="Không gửi được hồ sơ" />
 
       <section className="space-y-4">
         <div className="portal-form-section-title"><span>I</span><h3>Thông tin ứng viên</h3></div>

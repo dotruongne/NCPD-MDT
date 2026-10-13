@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { Activity, KeyRound, Search, ShieldCheck, UserRound, UserPlus, Users } from "lucide-react";
+import { Activity, KeyRound, Plus, Search, ShieldCheck, UserRound, UserPlus, Users, X } from "lucide-react";
 import { Badge, Empty } from "@/components/ui";
+import { ToastOnChange } from "@/components/toast-provider";
 import { createOfficer, deleteOfficerAccount, resetOfficerPassword, updateOfficer } from "../actions";
 
 type PersonnelRole = "OFFICER" | "SUPERVISOR" | "ACCOUNTING" | "FTO" | "HIGH_COMMAND";
@@ -34,19 +35,7 @@ const ROLE_LABELS: Record<PersonnelRole, string> = {
 
 function ActionFeedback({ state }: { state: ActionState }) {
   if (!state) return null;
-  return (
-    <p
-      role={state.status === "error" ? "alert" : "status"}
-      aria-live="polite"
-      className={`rounded-lg border px-3 py-2 text-xs ${
-        state.status === "error"
-          ? "border-danger/40 bg-danger/10 text-red-200"
-          : "border-ok/40 bg-ok/10 text-emerald-200"
-      }`}
-    >
-      {state.message}
-    </p>
-  );
+  return <ToastOnChange eventKey={state} message={state.message} type={state.status} />;
 }
 
 function SubmitButton({
@@ -75,7 +64,7 @@ function OfficerCard({
   officer: OfficerSummary;
   hours: string;
   isCurrent: boolean;
-  onDeactivated: (message: string) => void;
+  onDeactivated: () => void;
 }) {
   const [profileState, profileAction] = useFormState(updateOfficer, EMPTY_STATE);
   const [passwordState, passwordAction] = useFormState(resetOfficerPassword, EMPTY_STATE);
@@ -87,7 +76,7 @@ function OfficerCard({
   }, [passwordState]);
 
   useEffect(() => {
-    if (deleteState?.status === "success") onDeactivated(deleteState.message);
+    if (deleteState?.status === "success") onDeactivated();
   }, [deleteState, onDeactivated]);
 
   const confirmDeactivation = (event: React.FormEvent<HTMLFormElement>) => {
@@ -293,9 +282,10 @@ export default function PersonnelRoster({
 }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "inactive">("active");
-  const [notice, setNotice] = useState<ActionState>(null);
-  const onDeactivated = useCallback((message: string) => {
-    setNotice({ status: "success", message });
+  const [selectedOfficerId, setSelectedOfficerId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
+  const onDeactivated = useCallback(() => {
     setStatus("all");
   }, []);
   const activeCount = officers.filter((officer) => officer.active).length;
@@ -310,6 +300,43 @@ export default function PersonnelRoster({
         .some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
     });
   }, [officers, query, status]);
+  const selectedOfficer = officers.find((officer) => officer.id === selectedOfficerId) ?? null;
+  const dialogOpen = createOpen || selectedOfficer !== null;
+
+  useEffect(() => {
+    if (!dialogOpen) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setCreateOpen(false);
+        setSelectedOfficerId(null);
+        return;
+      }
+      if (event.key === "Tab" && dialogRef.current) {
+        const focusable = dialogRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        );
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && (document.activeElement === first || document.activeElement === dialogRef.current)) {
+          event.preventDefault();
+          last?.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+        }
+      }
+    };
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", closeOnEscape);
+    dialogRef.current?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", closeOnEscape);
+      previousFocus?.focus();
+    };
+  }, [dialogOpen]);
 
   return (
     <div className="space-y-5">
@@ -331,21 +358,11 @@ export default function PersonnelRoster({
         </div>
       </section>
 
-      <ActionFeedback state={notice} />
-
-      <section className="rounded-xl border border-line bg-panel p-4 sm:p-5">
-        <div className="mb-4">
-          <p className="text-sm font-semibold text-white">Cấp tài khoản nhân viên</p>
-          <p className="mt-1 text-xs text-slate-500">Thông tin đăng nhập được mã hóa; mật khẩu không hiển thị lại sau khi tạo.</p>
-        </div>
-        <CreateOfficerForm />
-      </section>
-
       <section className="space-y-4" aria-labelledby="roster-heading">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h2 id="roster-heading" className="text-base font-semibold text-white">Danh sách nhân viên</h2>
-            <p className="mt-1 text-xs text-slate-500">Chỉnh hồ sơ, đặt lại mật khẩu hoặc khóa quyền đăng nhập.</p>
+            <p className="mt-1 text-xs text-slate-500">Chọn một hồ sơ để xem chi tiết và thao tác quản lý.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <label className="relative min-w-0 sm:w-72">
@@ -374,25 +391,106 @@ export default function PersonnelRoster({
                 <option value="inactive">Đã khóa</option>
               </select>
             </label>
+            <button type="button" onClick={() => setCreateOpen(true)} className="btn btn-neon min-h-10 whitespace-nowrap px-4 text-xs font-semibold">
+              <Plus className="h-4 w-4" aria-hidden="true" /> Tạo tài khoản
+            </button>
           </div>
         </div>
         <p className="text-xs text-slate-500" aria-live="polite">Hiển thị {filteredOfficers.length} / {officers.length} hồ sơ</p>
         {filteredOfficers.length === 0 ? (
           <Empty>{officers.length ? "Không có nhân viên phù hợp với điều kiện tìm kiếm." : "Chưa có tài khoản nhân viên nào."}</Empty>
         ) : (
-          <div className="grid gap-3 2xl:grid-cols-2">
+          <div className="grid gap-2 xl:grid-cols-2">
             {filteredOfficers.map((officer) => (
-              <OfficerCard
+              <button
                 key={officer.id}
-                officer={officer}
-                hours={hoursByOfficer[officer.id] ?? "0 giờ"}
-                isCurrent={officer.id === currentOfficerId}
-                onDeactivated={onDeactivated}
-              />
+                type="button"
+                onClick={() => setSelectedOfficerId(officer.id)}
+                aria-label={`Mở hồ sơ ${officer.fullName}`}
+                className="group flex min-h-[76px] w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-line bg-panel px-4 py-3 text-left transition-colors hover:border-sky-400/50 hover:bg-panel2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-police/40 bg-police/10 text-xs font-bold text-sky-100">
+                    {officer.fullName.split(/\s+/).slice(-2).map((part) => part[0]).join("").toUpperCase()}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-white">{officer.fullName}</span>
+                    <span className="mt-1 block truncate font-mono text-[11px] text-slate-500">
+                      @{officer.username} · #{officer.badge}{officer.callsign ? ` · ${officer.callsign}` : ""}
+                    </span>
+                  </span>
+                </span>
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-slate-400">{officer.rank}</span>
+                  <Badge tone={officer.active ? "ok" : "neutral"} dot>{officer.active ? "Đang hoạt động" : "Đã khóa"}</Badge>
+                  {officer.onDuty && <Badge tone="info" dot>Đang trực</Badge>}
+                  <span className="hidden text-xs font-semibold text-sky-300 group-hover:inline sm:inline">Mở hồ sơ</span>
+                </span>
+              </button>
             ))}
           </div>
         )}
       </section>
+
+      {dialogOpen && (
+        <div
+          className="hr-modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setCreateOpen(false);
+              setSelectedOfficerId(null);
+            }
+          }}
+        >
+          <section
+            ref={dialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="personnel-dialog-title"
+            tabIndex={-1}
+            className="hr-modal-panel"
+          >
+            <header className="flex items-start justify-between gap-4 border-b border-line p-4 sm:p-5">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-sky-300">
+                  {createOpen ? "TẠO TÀI KHOẢN" : "HỒ SƠ NHÂN VIÊN"}
+                </p>
+                <h2 id="personnel-dialog-title" className="mt-1 text-lg font-semibold text-white">
+                  {createOpen ? "Cấp tài khoản nhân viên" : selectedOfficer?.fullName}
+                </h2>
+                <p className="mt-1 text-xs text-slate-400">
+                  {createOpen
+                    ? "Thông tin đăng nhập được mã hóa; mật khẩu không hiển thị lại sau khi tạo."
+                    : "Chỉnh sửa hồ sơ, quản lý quyền truy cập hoặc đặt lại mật khẩu."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCreateOpen(false);
+                  setSelectedOfficerId(null);
+                }}
+                aria-label="Đóng cửa sổ"
+                className="btn min-h-10 min-w-10 shrink-0 p-0"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </button>
+            </header>
+            <div className="max-h-[calc(100dvh-9rem)] overflow-y-auto p-4 sm:p-5">
+              {createOpen ? (
+                <CreateOfficerForm />
+              ) : selectedOfficer ? (
+                <OfficerCard
+                  officer={selectedOfficer}
+                  hours={hoursByOfficer[selectedOfficer.id] ?? "0 giờ"}
+                  isCurrent={selectedOfficer.id === currentOfficerId}
+                  onDeactivated={onDeactivated}
+                />
+              ) : null}
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

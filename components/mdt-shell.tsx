@@ -31,6 +31,7 @@ import {
   TrafficCone,
   KeyRound,
   Award,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -64,7 +65,9 @@ const TABS = [
   { group: "Phòng ban", href: "/mdt/departments/fto", label: "Phòng Huấn luyện FTO", detail: "Học viện & đào tạo", icon: GraduationCap, fto: true },
   { group: "Phòng ban", href: "/mdt/departments/fto/certificates", label: "Chứng chỉ sĩ quan", detail: "FTO certifications", icon: Award, fto: true },
   { group: "Quản trị", href: "/mdt/personnel", label: "CSDL nhân viên", detail: "Personnel records", icon: Users, personnel: true },
-  { group: "Quản trị", href: "/mdt/hr", label: "Quản lý nhân sự", detail: "Personnel management", icon: Shield, personnel: true },
+  { group: "Quản lý nhân sự", href: "/mdt/hr", label: "Quản lý nhân sự", detail: "Personnel management", icon: Shield, personnel: true },
+  { group: "Quản lý nhân sự", href: "/mdt/hr/recruitment", label: "Khu ứng tuyển", detail: "Recruitment applications", icon: UserCheck, personnel: true, nested: true },
+  { group: "Quản lý nhân sự", href: "/mdt/hr/reports", label: "Báo án công dân", detail: "Citizen reports", icon: ScrollText, personnel: true, nested: true },
   { group: "Quản trị", href: "/mdt/internal-affairs", label: "Nội vụ (IA)", detail: "Hồ sơ khiếu nại & kỷ luật", icon: BadgeAlert, personnel: true },
   { group: "Quản trị", href: "/mdt/audit", label: "Nhật ký thao tác", detail: "Audit log", icon: ScrollText, personnel: true },
   { group: "Tài khoản", href: "/mdt/settings", label: "Bảo mật tài khoản", detail: "Password & sessions", icon: KeyRound },
@@ -167,7 +170,7 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
                   </p>
                 )}
                 <div className="space-y-1">
-                  {tabs.filter((tab) => tab.group === group).map(({ href, label, detail, icon: Icon }) => {
+                  {tabs.filter((tab) => tab.group === group).map(({ href, label, detail, icon: Icon, nested }) => {
                     const targetPath = href.split("?")[0];
                     const active = targetPath === "/mdt"
                       ? path === targetPath
@@ -178,6 +181,8 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
                           : href.includes("tab=evidence")
                           ? searchParams.get("tab") === "evidence"
                           : !["vehicles", "evidence"].includes(searchParams.get("tab") ?? ""))
+                      : targetPath === "/mdt/hr"
+                      ? path === targetPath
                       : path.startsWith(targetPath);
                     return (
                       <Link
@@ -188,6 +193,7 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
                         className={cn(
                           "mdt-nav-link group flex min-h-10 items-center gap-3 rounded-md border-l-2 border-transparent px-3 text-[13px] font-medium transition-colors",
                           compact && "justify-center px-0",
+                          nested && !compact && "ml-2 pl-5",
                           active
                               ? "mdt-nav-active border-l-[#a84242] text-white"
                               : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100"

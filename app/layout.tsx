@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PortalModeSwitch } from "@/components/portal-mode-switch";
+import { ToastProvider } from "@/components/toast-provider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen">
-        {children}
+        <ToastProvider>{children}</ToastProvider>
         <PortalModeSwitch />
       </body>
     </html>
