@@ -39,7 +39,12 @@ export function RecruitmentApplicationForm() {
 
   return (
     <form action={action} className="space-y-7">
-      <ToastOnChange eventKey={state} message={state?.error} type="error" title="Không gửi được hồ sơ" />
+      <ToastOnChange
+        eventKey={state}
+        message={state?.trackingCode ? `Mã theo dõi: ${state.trackingCode}. Đơn của bạn đã được tiếp nhận và đang chờ Ban Tuyển dụng xét duyệt.` : state?.error}
+        type={state?.trackingCode ? "success" : "error"}
+        title={state?.trackingCode ? "Đã gửi đơn ứng tuyển" : "Không gửi được hồ sơ"}
+      />
 
       <section className="space-y-4">
         <div className="portal-form-section-title"><span>I</span><h3>Thông tin ứng viên</h3></div>

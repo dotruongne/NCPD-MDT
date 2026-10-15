@@ -7,6 +7,7 @@ import { fmtDate } from "@/lib/utils";
 import { hasPersonnelManagement } from "@/lib/roles";
 import { reviewApplication } from "../../actions";
 import HrSectionNav from "../hr-section-nav";
+import { NewApplicationToast } from "./new-application-toast";
 
 const ASTATUS = {
   PENDING: { label: "Chờ duyệt", tone: "warn" as const, dot: true },
@@ -21,10 +22,18 @@ export default async function RecruitmentPage() {
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: 40,
   });
+  const newestApplication = await db.application.findFirst({
+    orderBy: { createdAt: "desc" },
+    select: { id: true, fullName: true },
+  });
   const pendingCount = applications.filter((application) => application.status === "PENDING").length;
 
   return (
     <div className="space-y-5">
+      <NewApplicationToast
+        applicationId={newestApplication?.id ?? null}
+        applicantName={newestApplication?.fullName ?? null}
+      />
       <PageTitle
         tag="RECRUITMENT"
         sub="Tiếp nhận, xem xét và phản hồi hồ sơ ứng tuyển vào lực lượng."
