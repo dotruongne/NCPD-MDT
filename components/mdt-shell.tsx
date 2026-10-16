@@ -340,7 +340,9 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
           </header>
 
           <main className={cn("mdt-main mx-auto min-h-[calc(100vh-106px)] max-w-[1600px] transition-all", compact ? "p-4 md:p-5" : "p-4 md:p-7")}>
-            {children}
+            <div key={`${path}?${searchParams.toString()}`} className="mdt-page-enter">
+              {children}
+            </div>
           </main>
         </div>
       </div>
