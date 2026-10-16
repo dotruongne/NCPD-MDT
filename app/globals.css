@@ -3309,147 +3309,64 @@ textarea {
 }
 
 .ncpd-loading-screen {
-  position: relative;
   display: grid;
   min-height: 100svh;
   place-items: center;
-  overflow: hidden;
-  background-color: #09121b;
-  background-image: linear-gradient(rgba(140, 170, 195, 0.045) 1px, transparent 1px), linear-gradient(90deg, rgba(140, 170, 195, 0.045) 1px, transparent 1px), radial-gradient(ellipse at 50% 47%, rgba(29, 71, 96, 0.34), transparent 48%);
-  background-size: 38px 38px, 38px 38px, auto;
+  background: #09121b;
   color: #e7edf2;
-  padding: 1.5rem;
-}
-
-.ncpd-loading-screen::after {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.12) 50%);
-  background-size: 100% 4px;
-  content: "";
-  opacity: 0.28;
-  pointer-events: none;
+  padding: 1rem;
 }
 
 .ncpd-loading {
-  width: min(34rem, 100%);
-  border-top: 2px solid #a84242;
-  border-bottom: 1px solid rgba(164, 184, 203, 0.2);
-  background: rgba(11, 22, 33, 0.72);
-  padding: 1rem clamp(1rem, 5vw, 2rem) 1.25rem;
-  animation: loader-arrive 440ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
-}
-
-.ncpd-loading-topline,
-.ncpd-loading-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  color: #8193a3;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.58rem;
-  font-weight: 700;
-}
-
-.ncpd-loading-topline > span:first-child {
   display: grid;
-  width: 2rem;
-  height: 2rem;
-  place-items: center;
-  border: 1px solid rgba(164, 184, 203, 0.3);
-  color: #e9eff4;
+  justify-items: center;
+  text-align: center;
+  animation: loader-arrive 300ms ease-out both;
 }
 
-.ncpd-loading-topline > span:nth-child(2) { flex: 1; }
-.ncpd-loading-topline > span:last-child { color: #c06f6f; }
-
-.ncpd-loading-core {
-  display: flex;
-  align-items: center;
-  gap: clamp(1rem, 5vw, 2rem);
-  padding: 2.2rem 0;
-}
-
-.ncpd-loading-radar {
+.ncpd-loading-spinner {
   position: relative;
   display: grid;
-  width: clamp(6.5rem, 27vw, 8.5rem);
+  width: 5.25rem;
   aspect-ratio: 1;
-  flex: 0 0 auto;
   place-items: center;
-  border: 1px solid rgba(107, 165, 190, 0.24);
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(36, 91, 115, 0.18), transparent 68%);
+  margin-bottom: 1.15rem;
 }
 
-.ncpd-loading-radar::before,
-.ncpd-loading-radar::after {
-  position: absolute;
-  content: "";
-  background: rgba(119, 161, 181, 0.16);
-}
-
-.ncpd-loading-radar::before { width: 1px; height: 100%; }
-.ncpd-loading-radar::after { width: 100%; height: 1px; }
-
-.ncpd-radar-ring {
-  position: absolute;
-  border: 1px solid rgba(107, 165, 190, 0.18);
-  border-radius: 50%;
-}
-
-.ncpd-radar-ring-one { inset: 18%; }
-.ncpd-radar-ring-two { inset: 36%; }
-
-.ncpd-radar-sweep {
+.ncpd-loading-spinner-track,
+.ncpd-loading-spinner-arc {
   position: absolute;
   inset: 0;
-  overflow: hidden;
+  border: 3px solid transparent;
   border-radius: 50%;
-  background: conic-gradient(from 0deg, transparent 0 72%, rgba(91, 222, 190, 0.24) 100%);
-  animation: radar-sweep 3.6s linear infinite;
 }
 
-.ncpd-loading-shield { z-index: 1; width: 2rem; height: 2rem; color: #d9e5ed; }
-.ncpd-radar-mark { position: absolute; z-index: 2; width: 0.38rem; height: 0.38rem; border-radius: 50%; background: #68e1bb; box-shadow: 0 0 12px rgba(104, 225, 187, 0.8); }
-.ncpd-radar-mark-one { top: 29%; right: 23%; }
-.ncpd-radar-mark-two { bottom: 25%; left: 26%; width: 0.27rem; height: 0.27rem; background: #e77d7d; box-shadow: 0 0 10px rgba(231, 125, 125, 0.7); }
+.ncpd-loading-spinner-track {
+  border-color: rgba(190, 205, 218, 0.12);
+}
 
-.ncpd-loading-copy { min-width: 0; }
-.ncpd-loading-eyebrow { display: flex; align-items: center; gap: 0.45rem; color: #72d9bb; font: 700 0.6rem/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
-.ncpd-loading-copy h1 { margin-top: 0.5rem; color: #f0f4f6; font-size: clamp(1.8rem, 8vw, 2.7rem); font-weight: 800; line-height: 1; }
-.ncpd-loading-copy h1 span { color: #b7c5d0; font-weight: 400; }
-.ncpd-loading-detail { margin-top: 0.65rem; color: #91a3b2; font-size: 0.8rem; line-height: 1.5; }
-.ncpd-loading-progress { height: 2px; overflow: hidden; background: rgba(139, 162, 180, 0.15); }
-.ncpd-loading-progress span { display: block; width: 35%; height: 100%; transform-origin: left; background: linear-gradient(90deg, #a84242, #e07d70, #74d9b7); animation: loader-progress 1.8s ease-in-out infinite; }
-.ncpd-loading-foot { padding-top: 0.8rem; font-size: 0.52rem; }
-.ncpd-loading-dots { display: flex; gap: 0.25rem; }
-.ncpd-loading-dots i { width: 0.25rem; height: 0.25rem; border-radius: 50%; background: #72d9bb; animation: loading-dot 900ms ease-in-out infinite alternate; }
-.ncpd-loading-dots i:nth-child(2) { animation-delay: 150ms; }
-.ncpd-loading-dots i:nth-child(3) { animation-delay: 300ms; }
+.ncpd-loading-spinner-arc {
+  border-top-color: #c85252;
+  border-right-color: #c85252;
+  animation: ncpd-spinner-rotate 850ms linear infinite;
+}
+
+.ncpd-loading-shield { width: 1.65rem; height: 1.65rem; color: #d9e5ed; }
+.ncpd-loading-title { color: #f0f4f6; font-size: 1.1rem; font-weight: 700; }
+.ncpd-loading-title span { margin-left: 0.25rem; color: #a9b6c2; font-size: 0.9rem; font-weight: 400; }
+.ncpd-loading-detail { max-width: 22rem; margin-top: 0.4rem; color: #91a3b2; font-size: 0.8rem; line-height: 1.5; }
 
 @keyframes toast-enter { from { opacity: 0; transform: translate3d(1rem, -0.35rem, 0); } to { opacity: 1; transform: translate3d(0, 0, 0); } }
 @keyframes toast-countdown { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 @keyframes loader-arrive { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes radar-sweep { to { transform: rotate(360deg); } }
-@keyframes loader-progress { 0% { transform: translateX(-110%) scaleX(0.55); } 55% { transform: translateX(95%) scaleX(1.5); } 100% { transform: translateX(300%) scaleX(0.65); } }
-@keyframes loading-dot { to { opacity: 0.25; transform: scale(0.75); } }
-
-@media (max-width: 480px) {
-  .ncpd-loading-core { gap: 1rem; }
-  .ncpd-loading-topline { font-size: 0.48rem; }
-  .ncpd-loading-foot { font-size: 0.45rem; }
-}
+@keyframes ncpd-spinner-rotate { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
   .app-toast,
   .app-toast-progress,
   .ncpd-loading,
-  .ncpd-radar-sweep,
-  .ncpd-loading-progress span,
-  .ncpd-loading-dots i { animation: none; }
-  .ncpd-loading-progress span { width: 42%; }
+  .ncpd-loading-spinner-arc { animation: none; }
   .app-toast-close { transition: none; }
 }
 
