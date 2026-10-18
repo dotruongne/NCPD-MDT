@@ -77,47 +77,52 @@ export default async function Dashboard() {
   const canPost = me.role !== "OFFICER";
 
   return (
-    <div className="mdt-dashboard space-y-5">
-      {/* 1. Tactical Command Center Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-line/80 pb-4">
+    <div className="mdt-dashboard space-y-6">
+      {/* 1. Tactical Command Center Header & Status Strip */}
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#253648] pb-4">
         <div>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-neon">
-              NOVARIS CITY POLICE DEPARTMENT
+            <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-sky-400">
+              NOVARIS POLICE DEPT // TAC-CAD SERVER ONLINE
             </span>
             <span className="text-slate-600">/</span>
-            <span className="font-mono text-[10px] text-slate-400">TACTICAL DISPATCH HQ</span>
+            <span className="font-mono text-[10px] text-slate-400">DISPATCH SECURE HQ</span>
           </div>
           <h1 className="mt-1 font-mono text-2xl font-black uppercase tracking-tight text-white sm:text-3xl">
             Trung Tâm Chỉ Huy Tác Chiến
           </h1>
           <p className="mt-1 text-xs text-slate-400">
-            Giám sát nguồn lực, tiếp nhận cảnh báo khẩn cấp và cập nhật chỉ lệnh ca trực.
+            Giám sát thời gian thực: lực lượng tuần tra, cuộc gọi 911 khẩn cấp, cảnh báo BOLO và chỉ đạo tác chiến.
           </p>
         </div>
 
-        {/* Quick Launchpad & Shift Status */}
+        {/* Quick Tactical Launchpad */}
         <div className="flex flex-wrap items-center gap-2.5">
           <Link
             href="/mdt/reports/new"
-            className="btn btn-neon text-xs font-mono font-bold px-3.5 py-2 shadow-neon flex items-center gap-1.5"
+            className="btn btn-neon text-xs font-mono font-bold px-4 py-2.5 shadow-neon flex items-center gap-2 group cursor-pointer"
           >
-            <Plus className="h-4 w-4" /> LẬP BÁO CÁO ÁN
+            <Plus className="h-4 w-4 text-neon transition-transform group-hover:rotate-90" />
+            <span>LẬP BÁO CÁO ÁN</span>
           </Link>
           <Link
             href="/mdt/database"
-            className="btn text-xs font-mono px-3 py-2 flex items-center gap-1.5"
+            className="btn text-xs font-mono px-3.5 py-2.5 flex items-center gap-2 border border-[#253648] bg-[#0d1726] hover:border-sky-400/50 hover:text-white transition cursor-pointer"
           >
-            <Search className="h-3.5 w-3.5 text-neon" /> TRA CỨU CSDL
+            <Search className="h-3.5 w-3.5 text-sky-400" />
+            <span>TRA CỨU CSDL</span>
           </Link>
-          <div className="hidden sm:inline-flex items-center gap-2 border border-line bg-panel2/60 px-3 py-2 text-xs font-mono text-slate-300 rounded">
-            <CalendarDays className="h-3.5 w-3.5 text-slate-500" />
-            {now.toLocaleDateString("vi-VN", {
-              weekday: "short",
-              day: "numeric",
-              month: "numeric",
-              year: "numeric",
-            })}
+          <div className="hidden sm:inline-flex items-center gap-2 border border-[#253648] bg-[#0a1220] px-3.5 py-2.5 text-xs font-mono text-slate-300 rounded">
+            <CalendarDays className="h-3.5 w-3.5 text-slate-400" />
+            <span>
+              {now.toLocaleDateString("vi-VN", {
+                weekday: "short",
+                day: "numeric",
+                month: "numeric",
+                year: "numeric",
+              })}
+            </span>
           </div>
         </div>
       </div>
@@ -140,7 +145,7 @@ export default async function Dashboard() {
           icon={Radio}
           tone="ok"
         />
-        <Link href="/mdt/dispatch" className="block transition hover:-translate-y-0.5">
+        <Link href="/mdt/dispatch" className="block transition hover:-translate-y-0.5 group">
           <StatCard
             label="Cuộc gọi đang mở"
             value={activeCallCount}
@@ -149,7 +154,7 @@ export default async function Dashboard() {
             tone={activeCallCount > 0 ? "danger" : "police"}
           />
         </Link>
-        <Link href="/mdt/ops" className="block transition hover:-translate-y-0.5">
+        <Link href="/mdt/ops" className="block transition hover:-translate-y-0.5 group">
           <StatCard
             label="BOLO hiệu lực"
             value={activeBoloCount}
@@ -158,7 +163,7 @@ export default async function Dashboard() {
             tone={activeBoloCount > 0 ? "warn" : "police"}
           />
         </Link>
-        <Link href="/mdt/ops" className="block transition hover:-translate-y-0.5">
+        <Link href="/mdt/ops" className="block transition hover:-translate-y-0.5 group">
           <StatCard
             label="Lệnh truy nã"
             value={activeWarrants}
@@ -167,7 +172,7 @@ export default async function Dashboard() {
             tone={activeWarrants > 0 ? "danger" : "police"}
           />
         </Link>
-        <Link href="/mdt/reports" className="block transition hover:-translate-y-0.5">
+        <Link href="/mdt/reports" className="block transition hover:-translate-y-0.5 group">
           <StatCard
             label="Báo cáo 7 ngày"
             value={recentIncidents}
