@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -86,41 +86,89 @@ export function Tabs({
   onChange: (id: string) => void;
   className?: string;
 }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [pillStyle, setPillStyle] = useState<{ left: number; width: number }>({ left: 0, width: 0 });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const activeEl = containerRef.current.querySelector<HTMLButtonElement>(`[data-tab-id="${active}"]`);
+    if (activeEl) {
+      setPillStyle({
+        left: activeEl.offsetLeft,
+        width: activeEl.offsetWidth,
+      });
+    }
+  }, [active, tabs]);
+
+  const handleKeyDown = (e: React.KeyboardEvent, currentIndex: number) => {
+    let nextIndex = -1;
+    if (e.key === "ArrowRight") {
+      nextIndex = (currentIndex + 1) % tabs.length;
+    } else if (e.key === "ArrowLeft") {
+      nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
+    }
+    if (nextIndex >= 0) {
+      e.preventDefault();
+      const nextTab = tabs[nextIndex];
+      if (nextTab) onChange(nextTab.id);
+    }
+  };
+
   return (
     <div
+      ref={containerRef}
       role="tablist"
       aria-label="Tabs"
-      className={cn("flex gap-0 border-b border-line", className)}
+      className={cn(
+        "relative flex items-center p-1 rounded-lg border border-[#253648] bg-[#091220]/80 backdrop-blur-sm select-none",
+        className
+      )}
     >
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          role="tab"
-          aria-selected={active === tab.id}
-          aria-controls={`tabpanel-${tab.id}`}
-          onClick={() => onChange(tab.id)}
-          className={cn(
-            "flex items-center gap-2 border-b-2 px-4 pb-2.5 pt-2 text-xs font-semibold tracking-wide transition-colors",
-            active === tab.id
-              ? "border-neon text-neon"
-              : "border-transparent text-slate-500 hover:border-slate-600 hover:text-slate-300"
-          )}
-        >
-          {tab.label}
-          {tab.count !== undefined && (
-            <span
-              className={cn(
-                "rounded px-1.5 py-0.5 font-mono text-[10px]",
-                active === tab.id
-                  ? "bg-neon/15 text-neon"
-                  : "bg-white/[0.05] text-slate-500"
-              )}
-            >
-              {tab.count}
-            </span>
-          )}
-        </button>
-      ))}
+      {/* Lucian UX/UI #039 Sliding Pill Indicator */}
+      <span
+        className="absolute top-1 bottom-1 rounded-md bg-gradient-to-r from-sky-500/20 to-sky-400/20 border border-sky-400/40 shadow-[0_0_12px_rgba(56,189,248,0.25)] transition-all duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] pointer-events-none"
+        style={{
+          left: `${pillStyle.left}px`,
+          width: `${pillStyle.width}px`,
+        }}
+        aria-hidden="true"
+      />
+
+      {tabs.map((tab, idx) => {
+        const isSelected = active === tab.id;
+        return (
+          <button
+            key={tab.id}
+            data-tab-id={tab.id}
+            type="button"
+            role="tab"
+            aria-selected={isSelected}
+            aria-controls={`tabpanel-${tab.id}`}
+            onClick={() => onChange(tab.id)}
+            onKeyDown={(e) => handleKeyDown(e, idx)}
+            className={cn(
+              "relative z-10 flex items-center justify-center gap-2 px-3.5 py-1.5 text-xs font-mono font-semibold tracking-wider rounded-md transition-colors duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-sky-400",
+              isSelected
+                ? "text-white font-bold"
+                : "text-slate-400 hover:text-slate-200"
+            )}
+          >
+            <span>{tab.label}</span>
+            {tab.count !== undefined && (
+              <span
+                className={cn(
+                  "rounded px-1.5 py-0.2 font-mono text-[10px] transition-colors",
+                  isSelected
+                    ? "bg-sky-400/30 text-sky-200 border border-sky-400/40"
+                    : "bg-white/[0.05] text-slate-500"
+                )}
+              >
+                {tab.count}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

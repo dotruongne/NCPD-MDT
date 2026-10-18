@@ -310,10 +310,7 @@ export function ThreatBanner({
   );
 }
 
-// ─────────────────────────────────────────────────────────────
-// EMPTY STATE
-// ─────────────────────────────────────────────────────────────
-
+// Lucian UX/UI Prompt #092 · MIT License · https://lucianlabs.dev/uxui-prompt/#092
 export function Empty({
   icon,
   children,
@@ -327,14 +324,31 @@ export function Empty({
     <div
       role="status"
       className={cn(
-        "flex flex-col items-center justify-center rounded border border-dashed border-line/60 bg-panel2/30 px-6 py-10 text-center",
+        "relative flex flex-col items-center justify-center rounded-lg border border-dashed border-[#253648] bg-[#091220]/50 p-8 text-center select-none overflow-hidden",
         className
       )}
     >
-      <span className="mb-2.5 text-slate-500">
-        {icon ?? <Inbox className="h-7 w-7 stroke-[1.5]" />}
-      </span>
-      <p className="text-sm text-slate-400">{children}</p>
+      {/* Background Subtle Radar Lens Art (Lucian #092 adaptation) */}
+      <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full border border-sky-500/20 bg-sky-950/20 text-sky-400 shadow-[0_0_20px_rgba(56,189,248,0.12)]">
+        {icon ? (
+          icon
+        ) : (
+          <svg className="h-6 w-6 stroke-[1.8]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="11" cy="11" r="7" />
+            <path d="M21 21l-4.35-4.35" />
+            <path d="M8 11h6" strokeDasharray="2 2" />
+          </svg>
+        )}
+      </div>
+
+      <div className="max-w-xs space-y-1">
+        <p className="font-mono text-xs font-semibold text-slate-300">
+          KHÔNG TÌM THẤY DỮ LIỆU
+        </p>
+        <p className="font-sans text-xs text-slate-500 leading-relaxed">
+          {children}
+        </p>
+      </div>
     </div>
   );
 }
