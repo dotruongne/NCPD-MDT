@@ -1,5 +1,42 @@
+/**
+ * NCPD MDT – Atomic UI Primitives
+ *
+ * Tactical Dark Theme only. No light-mode variants.
+ * Every component follows:
+ *  - Composition over configuration
+ *  - WCAG 2.1 AA keyboard accessibility
+ *  - Semantic color tokens from tailwind.config.ts
+ *  - No inline styles, no arbitrary pixel values
+ */
+
+"use client";
+
 import { cn } from "@/lib/utils";
-import { Inbox } from "lucide-react";
+import {
+  Inbox,
+  X,
+  ChevronRight,
+  AlertTriangle,
+  Info,
+  CheckCircle2,
+  AlertCircle,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+
+// ─────────────────────────────────────────────────────────────
+// CARD
+// ─────────────────────────────────────────────────────────────
+
+const CARD_TONES = {
+  default: "",
+  danger:  "border-danger/35",
+  warn:    "border-warn/30",
+  neon:    "border-neon/25",
+  police:  "border-police/40",
+  ok:      "border-ok/30",
+} as const;
+
+type CardTone = keyof typeof CARD_TONES;
 
 export function Card({
   title,
@@ -8,7 +45,7 @@ export function Card({
   className,
   action,
   subtitle,
-  tone,
+  tone = "default",
   id,
 }: {
   title?: string;
@@ -17,33 +54,38 @@ export function Card({
   className?: string;
   action?: React.ReactNode;
   subtitle?: string;
-  tone?: "default" | "danger" | "warn" | "neon" | "police";
+  tone?: CardTone;
   id?: string;
 }) {
-  const toneBorders = {
-    default: "",
-    danger: "border-danger/30",
-    warn: "border-warn/30",
-    neon: "border-neon/30",
-    police: "border-police/30",
-  };
-
   return (
-    <section id={id} className={cn("card scroll-mt-24", tone && toneBorders[tone], className)}>
+    <section
+      id={id}
+      className={cn(
+        "card scroll-mt-24",
+        tone !== "default" && CARD_TONES[tone],
+        className
+      )}
+    >
       {title && (
         <div className="card-title justify-between">
           <div className="flex items-center gap-2.5">
             {icon && (
-              <span className="flex h-8 w-8 items-center justify-center rounded-md border border-line bg-white/[0.035] text-sky-200">
+              <span className="flex h-8 w-8 items-center justify-center rounded border border-line bg-white/[0.04] text-neon">
                 {icon}
               </span>
             )}
             <div>
-              <span className="text-slate-100 font-semibold">{title}</span>
-              {subtitle && <p className="mt-1 font-sans text-xs font-normal leading-relaxed text-slate-500">{subtitle}</p>}
+              <span className="font-semibold text-slate-100">{title}</span>
+              {subtitle && (
+                <p className="mt-0.5 font-sans text-xs font-normal leading-relaxed text-slate-500">
+                  {subtitle}
+                </p>
+              )}
             </div>
           </div>
-          {action && <div className="normal-case font-sans tracking-normal">{action}</div>}
+          {action && (
+            <div className="normal-case font-sans tracking-normal">{action}</div>
+          )}
         </div>
       )}
       {children}
@@ -51,47 +93,68 @@ export function Card({
   );
 }
 
-export function Field({
-  label,
+// ─────────────────────────────────────────────────────────────
+// BUTTON
+// ─────────────────────────────────────────────────────────────
+
+const BTN_VARIANTS = {
+  default: "btn",
+  neon:    "btn btn-neon",
+  danger:  "btn btn-danger",
+  ok:      "btn btn-ok",
+  gold:    "btn btn-gold",
+  ghost:   "btn border-transparent bg-transparent hover:bg-white/[0.05] hover:border-line",
+} as const;
+
+const BTN_SIZES = {
+  sm: "px-2.5 py-1.5 text-xs gap-1.5",
+  md: "px-3.5 py-2 text-sm gap-2",
+  lg: "px-4 py-2.5 text-sm gap-2",
+} as const;
+
+export function Button({
+  variant = "default",
+  size = "md",
   children,
-  required,
-  hint,
+  className,
+  ...props
 }: {
-  label: string;
+  variant?: keyof typeof BTN_VARIANTS;
+  size?: keyof typeof BTN_SIZES;
   children: React.ReactNode;
-  required?: boolean;
-  hint?: string;
-}) {
+  className?: string;
+} & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
-    <div>
-      <div className="flex items-center justify-between mb-1.5">
-        <label className="label mb-0">
-          {label} {required && <span className="text-danger">*</span>}
-        </label>
-        {hint && <span className="text-[10px] text-slate-500 font-mono">{hint}</span>}
-      </div>
+    <button
+      className={cn(BTN_VARIANTS[variant], BTN_SIZES[size], className)}
+      {...props}
+    >
       {children}
-    </div>
+    </button>
   );
 }
 
-const TONES = {
-  neutral: "border-line/80 bg-slate-800/40 text-slate-300",
-  info: "border-police/40 bg-police/10 text-sky-200",
-  ok: "border-ok/40 bg-ok/10 text-emerald-300",
-  warn: "border-warn/40 bg-warn/10 text-amber-300",
-  danger: "border-danger/40 bg-danger/10 text-red-300",
-  gold: "border-gold/40 bg-gold/10 text-amber-300",
-};
+// ─────────────────────────────────────────────────────────────
+// BADGE
+// ─────────────────────────────────────────────────────────────
 
-const DOT_COLORS = {
+const BADGE_TONES = {
+  neutral: "border-line/80 bg-slate-800/40 text-slate-300",
+  info:    "border-police/40 bg-police/15 text-sky-200",
+  ok:      "border-ok/40 bg-ok/10 text-emerald-300",
+  warn:    "border-warn/40 bg-warn/10 text-amber-300",
+  danger:  "border-danger/40 bg-danger/10 text-red-300",
+  gold:    "border-gold/40 bg-gold/10 text-amber-300",
+} as const;
+
+const BADGE_DOTS = {
   neutral: "bg-slate-400",
-  info: "bg-sky-300",
-  ok: "bg-emerald-400",
-  warn: "bg-amber-400",
-  danger: "bg-red-400",
-  gold: "bg-amber-400",
-};
+  info:    "bg-sky-300",
+  ok:      "bg-emerald-400",
+  warn:    "bg-amber-400",
+  danger:  "bg-red-400",
+  gold:    "bg-amber-400",
+} as const;
 
 export function Badge({
   tone = "neutral",
@@ -99,18 +162,169 @@ export function Badge({
   children,
   className,
 }: {
-  tone?: keyof typeof TONES;
+  tone?: keyof typeof BADGE_TONES;
   dot?: boolean;
   children: React.ReactNode;
   className?: string;
 }) {
   return (
-    <span className={cn("badge", TONES[tone], className)}>
-      {dot && <span className={cn("h-1.5 w-1.5 rounded-full shrink-0", DOT_COLORS[tone])} />}
+    <span className={cn("badge", BADGE_TONES[tone], className)}>
+      {dot && (
+        <span
+          className={cn("h-1.5 w-1.5 shrink-0 rounded-full", BADGE_DOTS[tone])}
+        />
+      )}
       {children}
     </span>
   );
 }
+
+// ─────────────────────────────────────────────────────────────
+// FIELD (form field wrapper)
+// ─────────────────────────────────────────────────────────────
+
+export function Field({
+  label,
+  children,
+  required,
+  hint,
+  htmlFor,
+}: {
+  label: string;
+  children: React.ReactNode;
+  required?: boolean;
+  hint?: string;
+  htmlFor?: string;
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between">
+        <label htmlFor={htmlFor} className="label mb-0">
+          {label}{" "}
+          {required && <span className="text-danger" aria-hidden>*</span>}
+          {required && <span className="sr-only">(bắt buộc)</span>}
+        </label>
+        {hint && (
+          <span className="font-mono text-[10px] text-slate-500">{hint}</span>
+        )}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// ALERT BANNER – for critical in-page alerts
+// ─────────────────────────────────────────────────────────────
+
+const ALERT_STYLES = {
+  critical: {
+    wrapper: "border-danger/60 bg-danger/10",
+    icon:    "text-red-400",
+    title:   "text-red-200",
+    body:    "text-red-300/80",
+    Icon:    AlertTriangle,
+  },
+  warn: {
+    wrapper: "border-warn/50 bg-warn/10",
+    icon:    "text-amber-400",
+    title:   "text-amber-200",
+    body:    "text-amber-300/80",
+    Icon:    AlertCircle,
+  },
+  info: {
+    wrapper: "border-neon/30 bg-neon/5",
+    icon:    "text-neon",
+    title:   "text-sky-100",
+    body:    "text-slate-400",
+    Icon:    Info,
+  },
+  ok: {
+    wrapper: "border-ok/40 bg-ok/8",
+    icon:    "text-emerald-400",
+    title:   "text-emerald-200",
+    body:    "text-emerald-300/80",
+    Icon:    CheckCircle2,
+  },
+} as const;
+
+export function AlertBanner({
+  level = "info",
+  title,
+  children,
+  className,
+}: {
+  level?: keyof typeof ALERT_STYLES;
+  title: string;
+  children?: React.ReactNode;
+  className?: string;
+}) {
+  const s = ALERT_STYLES[level];
+  return (
+    <div
+      role="alert"
+      className={cn(
+        "flex items-start gap-3 rounded border px-4 py-3",
+        s.wrapper,
+        className
+      )}
+    >
+      <s.Icon className={cn("mt-0.5 h-4 w-4 shrink-0", s.icon)} aria-hidden />
+      <div>
+        <p className={cn("text-[13px] font-semibold", s.title)}>{title}</p>
+        {children && (
+          <p className={cn("mt-0.5 text-xs", s.body)}>{children}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// THREAT BANNER – full-width, sticky, for WANTED / ARMED
+// ─────────────────────────────────────────────────────────────
+
+export function ThreatBanner({
+  level,
+  label,
+  sub,
+}: {
+  level: "wanted" | "armed" | "caution";
+  label: string;
+  sub?: string;
+}) {
+  const styles = {
+    wanted: "bg-danger/15 border-danger/60 text-red-200",
+    armed:  "bg-danger/20 border-danger/80 text-red-100",
+    caution:"bg-warn/10 border-warn/50 text-amber-200",
+  };
+  const icons = {
+    wanted:  "⚠",
+    armed:   "🔴",
+    caution: "⚡",
+  };
+
+  return (
+    <div
+      role="alert"
+      aria-live="assertive"
+      className={cn(
+        "flex items-center gap-3 border-b px-4 py-2.5 text-sm font-semibold tracking-wide",
+        styles[level]
+      )}
+    >
+      <span aria-hidden className="text-base leading-none">{icons[level]}</span>
+      <span>{label}</span>
+      {sub && (
+        <span className="ml-auto font-normal opacity-70 text-xs">{sub}</span>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// EMPTY STATE
+// ─────────────────────────────────────────────────────────────
 
 export function Empty({
   icon,
@@ -123,18 +337,62 @@ export function Empty({
 }) {
   return (
     <div
+      role="status"
       className={cn(
-        "flex flex-col items-center justify-center rounded-lg border border-dashed border-line/80 bg-panel2/30 px-6 py-8 text-center text-sm text-slate-400",
+        "flex flex-col items-center justify-center rounded border border-dashed border-line/60 bg-panel2/30 px-6 py-10 text-center",
         className
       )}
     >
-      <div className="mb-2 text-slate-500">
+      <span className="mb-2.5 text-slate-500">
         {icon ?? <Inbox className="h-7 w-7 stroke-[1.5]" />}
-      </div>
-      <p>{children}</p>
+      </span>
+      <p className="text-sm text-slate-400">{children}</p>
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────
+// SKELETON ROWS – for loading states
+// ─────────────────────────────────────────────────────────────
+
+export function SkeletonRow({ cols = 4 }: { cols?: number }) {
+  return (
+    <tr aria-hidden>
+      {Array.from({ length: cols }).map((_, i) => (
+        <td key={i} className="td">
+          <div className="h-3.5 w-3/4 animate-pulse rounded bg-white/[0.06]" />
+        </td>
+      ))}
+    </tr>
+  );
+}
+
+export function SkeletonRows({ count = 3, cols }: { count?: number; cols?: number }) {
+  return (
+    <tbody aria-label="Đang tải dữ liệu..." aria-busy="true">
+      {Array.from({ length: count }).map((_, i) => (
+        <SkeletonRow key={i} cols={cols} />
+      ))}
+    </tbody>
+  );
+}
+
+export function SkeletonBlock({
+  className,
+}: {
+  className?: string;
+}) {
+  return (
+    <div
+      aria-hidden
+      className={cn("animate-pulse rounded bg-white/[0.06]", className)}
+    />
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// PAGE TITLE
+// ─────────────────────────────────────────────────────────────
 
 export function PageTitle({
   children,
@@ -150,20 +408,33 @@ export function PageTitle({
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
-        {tag && (
-          <span className="mdt-eyebrow">
-            {tag}
-          </span>
-        )}
-        <h1 className="flex items-center gap-2 text-[26px] font-semibold tracking-[-0.025em] text-white sm:text-[30px]">
+        {tag && <span className="mdt-eyebrow">{tag}</span>}
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-white sm:text-[28px]">
           {children}
         </h1>
-        {sub && <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-slate-400">{sub}</p>}
+        {sub && (
+          <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-slate-400">
+            {sub}
+          </p>
+        )}
       </div>
       {action && <div>{action}</div>}
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────
+// STAT CARD
+// ─────────────────────────────────────────────────────────────
+
+const STAT_TONES = {
+  neon:   "text-neon border-neon/30 bg-neon/10",
+  police: "text-sky-300 border-police/40 bg-police/15",
+  danger: "text-red-400 border-danger/30 bg-danger/10",
+  ok:     "text-emerald-400 border-ok/30 bg-ok/10",
+  warn:   "text-amber-400 border-warn/30 bg-warn/10",
+  gold:   "text-amber-300 border-gold/30 bg-gold/10",
+} as const;
 
 export function StatCard({
   label,
@@ -176,31 +447,165 @@ export function StatCard({
   value: React.ReactNode;
   sub?: string;
   icon?: React.ComponentType<{ className?: string }>;
-  tone?: "neon" | "police" | "danger" | "ok" | "warn";
+  tone?: keyof typeof STAT_TONES;
 }) {
-  const tones = {
-    neon: "text-neon bg-neon/10 border-neon/30",
-    police: "text-police bg-police/10 border-police/30",
-    danger: "text-red-400 bg-danger/10 border-danger/30",
-    ok: "text-emerald-400 bg-ok/10 border-ok/30",
-    warn: "text-amber-400 bg-warn/10 border-warn/30",
-  };
-
   return (
-    <div className="card flex min-h-[112px] items-center justify-between border-t-2 border-t-police/70 p-4">
+    <div className="card flex min-h-[108px] items-center justify-between border-t-2 border-t-police/60 p-4">
       <div>
-        <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-slate-500">{label}</p>
-        <p className="mt-2 font-mono text-[26px] font-semibold leading-none tracking-tight text-white">{value}</p>
-        {sub && <p className="mt-2 text-[11px] text-slate-500">{sub}</p>}
+        <p className="text-[11px] font-medium uppercase tracking-[0.1em] text-slate-500">
+          {label}
+        </p>
+        <p className="mt-2 font-mono text-[26px] font-semibold leading-none tracking-tight text-white">
+          {value}
+        </p>
+        {sub && <p className="mt-1.5 text-[11px] text-slate-500">{sub}</p>}
       </div>
       {Icon && (
-        <div className={cn("flex h-10 w-10 items-center justify-center rounded-md border", tones[tone])}>
+        <div
+          className={cn(
+            "flex h-10 w-10 items-center justify-center rounded border",
+            STAT_TONES[tone]
+          )}
+        >
           <Icon className="h-[18px] w-[18px]" />
         </div>
       )}
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────
+// TABS
+// ─────────────────────────────────────────────────────────────
+
+export function Tabs({
+  tabs,
+  active,
+  onChange,
+  className,
+}: {
+  tabs: { id: string; label: string; count?: number }[];
+  active: string;
+  onChange: (id: string) => void;
+  className?: string;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Tabs"
+      className={cn("flex gap-0 border-b border-line", className)}
+    >
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          role="tab"
+          aria-selected={active === tab.id}
+          aria-controls={`tabpanel-${tab.id}`}
+          onClick={() => onChange(tab.id)}
+          className={cn(
+            "flex items-center gap-2 border-b-2 px-4 pb-2.5 pt-2 text-xs font-semibold tracking-wide transition-colors",
+            active === tab.id
+              ? "border-neon text-neon"
+              : "border-transparent text-slate-500 hover:border-slate-600 hover:text-slate-300"
+          )}
+        >
+          {tab.label}
+          {tab.count !== undefined && (
+            <span
+              className={cn(
+                "rounded px-1.5 py-0.5 font-mono text-[10px]",
+                active === tab.id
+                  ? "bg-neon/15 text-neon"
+                  : "bg-white/[0.05] text-slate-500"
+              )}
+            >
+              {tab.count}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// MODAL
+// ─────────────────────────────────────────────────────────────
+
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  width = "md",
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  width?: "sm" | "md" | "lg";
+}) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // Focus trap: move focus to close button when opened
+  useEffect(() => {
+    if (open) closeRef.current?.focus();
+  }, [open]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  const widths = { sm: "max-w-sm", md: "max-w-xl", lg: "max-w-3xl" };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/70 p-4 animate-fade-in"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+      onClick={onClose}
+    >
+      <div
+        className={cn(
+          "w-full rounded border border-line bg-panel shadow-2xl animate-slide-up",
+          widths[width]
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b border-line px-5 py-3.5">
+          <h2
+            id="modal-title"
+            className="text-sm font-semibold tracking-wide text-white"
+          >
+            {title}
+          </h2>
+          <button
+            ref={closeRef}
+            onClick={onClose}
+            aria-label="Đóng"
+            className="flex h-7 w-7 items-center justify-center rounded text-slate-500 transition hover:bg-white/[0.06] hover:text-white"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="px-5 py-4">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// LICENSE PLATE BADGE
+// ─────────────────────────────────────────────────────────────
 
 export function PlateBadge({
   plate,

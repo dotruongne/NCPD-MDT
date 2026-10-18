@@ -749,7 +749,49 @@ export async function createIncident(input: IncidentInput): Promise<{ ok: true; 
     return created;
   });
   revalidatePath("/mdt/reports");
+  revalidatePath("/mdt/cases");
   return { ok: true, number: incident.number, id: incident.id };
+}
+
+export async function updateIncidentCase(fd: FormData) {
+  const officer = await requireOfficer();
+  const id = s(fd, "id");
+  const caseStatus = s(fd, "caseStatus");
+  const assigneeId = s(fd, "assigneeId");
+  const resolution = s(fd, "resolution").slice(0, 3000);
+  if (!id || !["OPEN", "INVESTIGATING", "CLOSED"].includes(caseStatus)) {
+    throw new Error("Thông tin cập nhật hồ sơ không hợp lệ.");
+  }
+
+  await db.$transaction(async (tx) => {
+    const incident = await tx.incident.findUnique({ where: { id }, select: { number: true, caseStatus: true, assigneeId: true, resolution: true } });
+    if (!incident) throw new Error("Không tìm thấy hồ sơ vụ việc.");
+    let assigneeLabel = "chưa phân công";
+    if (assigneeId) {
+      const assignee = await tx.officer.findUnique({ where: { id: assigneeId }, select: { active: true, fullName: true, badge: true } });
+      if (!assignee?.active) throw new Error("Điều tra viên được chọn không còn hoạt động.");
+      assigneeLabel = `${assignee.fullName} (#${assignee.badge})`;
+    }
+
+    await tx.incident.update({
+      where: { id },
+      data: {
+        caseStatus: caseStatus as "OPEN" | "INVESTIGATING" | "CLOSED",
+        assigneeId: assigneeId || null,
+        resolution: resolution || null,
+      },
+    });
+    await recordAudit(tx, {
+      actorId: officer.id,
+      action: "UPDATE",
+      entityType: "IncidentCase",
+      entityId: id,
+      summary: `Cập nhật theo dõi vụ việc #${incident.number}: ${caseStatus}; điều tra viên ${assigneeLabel}.`,
+    });
+  });
+  revalidatePath("/mdt/cases");
+  revalidatePath("/mdt/reports");
+  revalidatePath("/mdt/audit");
 }
 
 // ───────── Tác chiến ─────────

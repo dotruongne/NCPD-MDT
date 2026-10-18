@@ -2,20 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =========================================================
+   NCPD MDT – Tactical Dark Theme (sole supported theme)
+   Light mode is not supported. All CSS vars are dark-only.
+   ADR: docs/adr/0003-pure-tactical-dark-theme-and-draft-vault.md
+   ========================================================= */
 :root {
   color-scheme: dark;
-  --app-bg: 12 21 34;
-  --app-panel: 17 29 45;
-  --app-panel2: 25 40 58;
-  --app-line: 43 58 76;
-}
-
-:root[data-theme="light"] {
-  color-scheme: light;
-  --app-bg: 240 243 247;
-  --app-panel: 255 255 255;
-  --app-panel2: 246 248 250;
-  --app-line: 213 220 228;
+  /* Structural surfaces */
+  --app-bg:     7  13 24;   /* #070d18 – deepest background */
+  --app-panel:  13 23 38;   /* #0d1726 – card/panel surface */
+  --app-panel2: 18 30 48;   /* #121e30 – alt panel, hover bg */
+  --app-line:   37 54 72;   /* #253648 – border/divider     */
 }
 
 body {
@@ -150,53 +148,32 @@ textarea {
 }
 
 .mdt-app {
-  --app-bg: 11 20 33;
-  --app-panel: 20 34 53;
-  --app-panel2: 25 43 64;
-  --app-line: 45 64 85;
-  --mdt-bg: #0b1421;
-  --mdt-sidebar-bg: #101b2a;
-  --mdt-panel: #142235;
-  --mdt-panel-alt: #192b40;
-  --mdt-border: #2d4055;
-  --mdt-ink: #f1f5f9;
-  --mdt-ink-soft: #d5dee8;
-  --mdt-muted: #9cabbc;
-  --mdt-brand: #9bbbd5;
-  --mdt-agency: #153958;
-  --mdt-nav-hover: #20354a;
-  --mdt-alert-bg: #342327;
-  --mdt-alert-border: #765052;
-  --mdt-alert-text: #e3b1b1;
+  /* MDT-specific overrides – tighter and deeper than citizen portal */
+  --app-bg:     7  13 24;
+  --app-panel:  13 23 38;
+  --app-panel2: 18 30 48;
+  --app-line:   37 54 72;
+  --mdt-bg:           #070d18;
+  --mdt-sidebar-bg:   #0a1220;
+  --mdt-panel:        #0d1726;
+  --mdt-panel-alt:    #121e30;
+  --mdt-border:       #253648;
+  --mdt-ink:          #e8edf3;
+  --mdt-ink-soft:     #b8c9da;
+  --mdt-muted:        #6b87a0;
+  --mdt-brand:        #7aadcc;
+  --mdt-agency:       #10294a;
+  --mdt-nav-hover:    #0f1e30;
+  --mdt-alert-bg:     #2a1518;
+  --mdt-alert-border: #6b3535;
+  --mdt-alert-text:   #e8b0b0;
   min-height: 100vh;
   color: var(--mdt-ink-soft);
   background-color: var(--mdt-bg) !important;
   background-image: none;
 }
 
-:root[data-theme="light"] .mdt-app {
-  --app-bg: 241 243 245;
-  --app-panel: 255 255 255;
-  --app-panel2: 245 246 247;
-  --app-line: 213 217 222;
-  --mdt-bg: #f1f3f5;
-  --mdt-sidebar-bg: #fff;
-  --mdt-panel: #fff;
-  --mdt-panel-alt: #f5f6f7;
-  --mdt-border: #d5d9de;
-  --mdt-ink: #162b40;
-  --mdt-ink-soft: #334155;
-  --mdt-muted: #586779;
-  --mdt-brand: #234d70;
-  --mdt-agency: #183f61;
-  --mdt-nav-hover: #eef2f5;
-  --mdt-alert-bg: #f9eeee;
-  --mdt-alert-border: #b78383;
-  --mdt-alert-text: #853535;
-  color: var(--mdt-ink-soft);
-  background-color: var(--mdt-bg) !important;
-  background-image: none;
-}
+
 
 .mdt-app .mdt-sidebar {
   background-color: var(--mdt-sidebar-bg);

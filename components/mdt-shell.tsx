@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Database,
   FileText,
+  ClipboardList,
   Radio,
   Users,
   Search,
@@ -34,7 +35,6 @@ import {
   UserCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { hasFinanceAccess, hasFtoAccess, hasPersonnelManagement } from "@/lib/roles";
 
 type Props = {
@@ -51,27 +51,95 @@ type Props = {
   children: React.ReactNode;
 };
 
-const TABS = [
-  { group: "Tổng quan", href: "/mdt", label: "Bảng điều khiển", detail: "Dashboard", icon: LayoutDashboard },
-  { group: "Tra cứu", href: "/mdt/database", label: "Hồ sơ công dân", detail: "Citizen records", icon: Database },
-  { group: "Tra cứu", href: "/mdt/database?tab=vehicles", label: "Phương tiện", detail: "Vehicle registry", icon: Car },
-  { group: "Tra cứu", href: "/mdt/database?tab=evidence", label: "Kho bằng chứng", detail: "Evidence records", icon: Archive },
-  { group: "Tác chiến", href: "/mdt/reports", label: "Báo cáo vụ việc", detail: "Incident reports", icon: FileText },
-  { group: "Tác chiến", href: "/mdt/dispatch", label: "Điều phối cuộc gọi", detail: "Dispatch", icon: Radio },
-  { group: "Tác chiến", href: "/mdt/ops", label: "BOLO & Truy nã", detail: "Operational alerts", icon: Siren },
-  { group: "Tác chiến", href: "/mdt/traffic", label: "Phạt & tạm giữ xe", detail: "Traffic enforcement", icon: TrafficCone },
-  { group: "Nhân sự", href: "/mdt/leave", label: "Xin nghỉ phép", detail: "Leave of absence", icon: CalendarDays },
-  { group: "Phòng ban", href: "/mdt/departments/finance", label: "Phòng Tài chính", detail: "Sổ quỹ & lương", icon: CircleDollarSign, finance: true },
-  { group: "Phòng ban", href: "/mdt/departments/fto", label: "Phòng Huấn luyện FTO", detail: "Học viện & đào tạo", icon: GraduationCap, fto: true },
-  { group: "Phòng ban", href: "/mdt/departments/fto/certificates", label: "Chứng chỉ sĩ quan", detail: "FTO certifications", icon: Award, fto: true },
-  { group: "Quản trị", href: "/mdt/personnel", label: "CSDL nhân viên", detail: "Personnel records", icon: Users, personnel: true },
-  { group: "Quản lý nhân sự", href: "/mdt/hr", label: "Quản lý nhân sự", detail: "Personnel management", icon: Shield, personnel: true },
-  { group: "Quản lý nhân sự", href: "/mdt/hr/recruitment", label: "Khu ứng tuyển", detail: "Recruitment applications", icon: UserCheck, personnel: true, nested: true },
-  { group: "Quản lý nhân sự", href: "/mdt/hr/reports", label: "Báo án công dân", detail: "Citizen reports", icon: ScrollText, personnel: true, nested: true },
-  { group: "Quản trị", href: "/mdt/internal-affairs", label: "Nội vụ (IA)", detail: "Hồ sơ khiếu nại & kỷ luật", icon: BadgeAlert, personnel: true },
-  { group: "Quản trị", href: "/mdt/audit", label: "Nhật ký thao tác", detail: "Audit log", icon: ScrollText, personnel: true },
-  { group: "Tài khoản", href: "/mdt/settings", label: "Bảo mật tài khoản", detail: "Password & sessions", icon: KeyRound },
+// ─── 4-Hub Navigation Architecture ────────────────────────────────────────────
+// Hub structure: 4 operational zones with grouped child routes.
+// Keyboard: Ctrl+1..4 jumps between hub landing pages.
+// SPEC: SPEC-ui-ux-overhaul.md § Navigation 4 Hub
+
+type TabDef = {
+  href: string;
+  label: string;
+  detail: string;
+  icon: React.ComponentType<{ className?: string }>;
+  nested?: boolean;
+  finance?: boolean;
+  fto?: boolean;
+  personnel?: boolean;
+};
+
+type HubDef = {
+  id: string;
+  label: string;
+  shortLabel: string;
+  icon: React.ComponentType<{ className?: string }>;
+  href: string;          // landing route used by Ctrl+N shortcut
+  accent: string;        // Tailwind text-color for active indicator
+  tabs: TabDef[];
+};
+
+const HUBS: HubDef[] = [
+  {
+    id: "command",
+    label: "Chỉ huy",
+    shortLabel: "CMD",
+    icon: LayoutDashboard,
+    href: "/mdt",
+    accent: "text-sky-300",
+    tabs: [
+      { href: "/mdt",           label: "Bảng điều khiển",   detail: "Dashboard",         icon: LayoutDashboard },
+      { href: "/mdt/dispatch",  label: "Điều phối cuộc gọi",detail: "Dispatch",           icon: Radio },
+      { href: "/mdt/ops",       label: "BOLO & Truy nã",    detail: "Operational alerts", icon: Siren },
+    ],
+  },
+  {
+    id: "records",
+    label: "Hồ sơ",
+    shortLabel: "REC",
+    icon: Database,
+    href: "/mdt/database",
+    accent: "text-neon",
+    tabs: [
+      { href: "/mdt/database",               label: "Hồ sơ công dân",  detail: "Citizen records",   icon: Database },
+      { href: "/mdt/database?tab=vehicles",  label: "Phương tiện",     detail: "Vehicle registry",  icon: Car },
+      { href: "/mdt/database?tab=evidence",  label: "Kho bằng chứng",  detail: "Evidence records",  icon: Archive },
+    ],
+  },
+  {
+    id: "enforce",
+    label: "Tác chiến",
+    shortLabel: "OPS",
+    icon: FileText,
+    href: "/mdt/reports",
+    accent: "text-amber-300",
+    tabs: [
+      { href: "/mdt/reports",  label: "Báo cáo vụ việc",   detail: "Incident reports",    icon: FileText },
+      { href: "/mdt/cases",    label: "Theo dõi vụ án",    detail: "Case management",     icon: ClipboardList },
+      { href: "/mdt/traffic",  label: "Phạt & tạm giữ xe", detail: "Traffic enforcement", icon: TrafficCone },
+    ],
+  },
+  {
+    id: "admin",
+    label: "Hành chính",
+    shortLabel: "ADM",
+    icon: Shield,
+    href: "/mdt/leave",
+    accent: "text-emerald-300",
+    tabs: [
+      { href: "/mdt/leave",               label: "Xin nghỉ phép",          detail: "Leave of absence",       icon: CalendarDays },
+      { href: "/mdt/departments/finance", label: "Phòng Tài chính",        detail: "Sổ quỹ & lương",         icon: CircleDollarSign, finance: true },
+      { href: "/mdt/departments/fto",     label: "Phòng Huấn luyện FTO",   detail: "Học viện & đào tạo",     icon: GraduationCap,     fto: true },
+      { href: "/mdt/departments/fto/certificates", label: "Chứng chỉ sĩ quan", detail: "FTO certifications", icon: Award,             fto: true, nested: true },
+      { href: "/mdt/personnel",           label: "CSDL nhân viên",         detail: "Personnel records",       icon: Users,             personnel: true },
+      { href: "/mdt/hr",                  label: "Quản lý nhân sự",        detail: "Personnel management",   icon: Shield,            personnel: true },
+      { href: "/mdt/hr/recruitment",      label: "Khu ứng tuyển",          detail: "Recruitment applications",icon: UserCheck,         personnel: true, nested: true },
+      { href: "/mdt/hr/reports",          label: "Báo án công dân",        detail: "Citizen reports",         icon: ScrollText,        personnel: true, nested: true },
+      { href: "/mdt/internal-affairs",    label: "Nội vụ (IA)",            detail: "Khiếu nại & kỷ luật",    icon: BadgeAlert,        personnel: true },
+      { href: "/mdt/audit",               label: "Nhật ký thao tác",       detail: "Audit log",               icon: ScrollText,        personnel: true },
+      { href: "/mdt/settings",            label: "Bảo mật tài khoản",      detail: "Password & sessions",     icon: KeyRound },
+    ],
+  },
 ];
+
 
 export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: Props) {
   const path = usePathname();
@@ -127,12 +195,55 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
     });
   };
 
-  const tabs = TABS.filter((t) =>
-    (!t.personnel || hasPersonnelManagement(officer.role, officer.rank)) &&
-    (!t.finance || hasFinanceAccess(officer.role, officer.rank)) &&
-    (!t.fto || hasFtoAccess(officer.role, officer.rank))
-  );
-  const groups = [...new Set(tabs.map((tab) => tab.group))];
+  // ── Role-filtered hubs: filter each hub's tabs by officer role ──────────────
+  const visibleHubs = HUBS.map((hub) => ({
+    ...hub,
+    tabs: hub.tabs.filter(
+      (t) =>
+        (!t.personnel || hasPersonnelManagement(officer.role, officer.rank)) &&
+        (!t.finance   || hasFinanceAccess(officer.role, officer.rank)) &&
+        (!t.fto       || hasFtoAccess(officer.role, officer.rank))
+    ),
+  })).filter((hub) => hub.tabs.length > 0);
+
+  // ── Active hub: detect which hub contains the current path ─────────────────
+  const activeHubId =
+    visibleHubs.find((hub) =>
+      hub.tabs.some((tab) => {
+        const tabPath = tab.href.split("?")[0];
+        return tabPath === "/mdt"
+          ? path === "/mdt"
+          : path.startsWith(tabPath);
+      })
+    )?.id ?? visibleHubs[0]?.id;
+
+  const [selectedHubId, setSelectedHubId] = useState(activeHubId);
+
+  // Keep selected hub in sync with navigation (back/fwd button)
+  useEffect(() => {
+    setSelectedHubId(activeHubId);
+  }, [activeHubId]);
+
+  const selectedHub =
+    visibleHubs.find((h) => h.id === selectedHubId) ?? visibleHubs[0];
+
+  // ── Ctrl+1..4: jump to hub landing page ────────────────────────────────────
+  useEffect(() => {
+    const onHubKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const num = parseInt(e.key);
+      if (num >= 1 && num <= visibleHubs.length) {
+        e.preventDefault();
+        const target = visibleHubs[num - 1];
+        setSelectedHubId(target.id);
+        router.push(target.href);
+      }
+    };
+    window.addEventListener("keydown", onHubKey);
+    return () => window.removeEventListener("keydown", onHubKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleHubs.map((h) => h.id).join(",")]);
+
   const profileInitials = officer.fullName
     .split(/\s+/)
     .slice(-2)
@@ -146,9 +257,10 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
         <aside
           className={cn(
             "mdt-sidebar sticky top-0 hidden h-screen shrink-0 flex-col border-r border-line transition-[width] duration-200 md:flex",
-            compact ? "w-[72px]" : "w-[252px]"
+            compact ? "w-[72px]" : "w-[260px]"
           )}
         >
+
           <Link href="/mdt" className={cn("mdt-wordmark flex h-[82px] items-center gap-3 border-b border-line border-t-4 border-t-[#a84242] px-5", compact && "justify-center px-2")}>
             <span className="mdt-brand-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-500/50 text-sky-200">
               <Shield className="h-[19px] w-[19px]" />
@@ -161,19 +273,62 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
             )}
           </Link>
 
-          <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5" aria-label="Điều hướng chính">
-            {groups.map((group) => (
-              <div key={group}>
+          {/* ── Hub switcher strip (left column when expanded) ── */}
+          <nav aria-label="Điều hướng chính" className="flex flex-1 flex-col overflow-hidden">
+            {/* Hub tabs */}
+            <div
+              className={cn(
+                "flex shrink-0 border-b border-line",
+                compact ? "flex-col gap-0" : "flex-row"
+              )}
+            >
+              {visibleHubs.map((hub, idx) => {
+                const HubIcon = hub.icon;
+                const isSelected = hub.id === selectedHubId;
+                return (
+                  <button
+                    key={hub.id}
+                    onClick={() => setSelectedHubId(hub.id)}
+                    title={compact ? `${hub.label} (Ctrl+${idx + 1})` : undefined}
+                    aria-label={`${hub.label} – Ctrl+${idx + 1}`}
+                    className={cn(
+                      "group flex flex-1 flex-col items-center gap-1 px-2 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.08em] transition-colors",
+                      compact ? "border-b border-line/40 py-3" : "",
+                      isSelected
+                        ? "bg-white/[0.04] text-white"
+                        : "text-slate-500 hover:bg-white/[0.025] hover:text-slate-300"
+                    )}
+                  >
+                    <HubIcon
+                      className={cn(
+                        "h-4 w-4 shrink-0",
+                        isSelected ? hub.accent : "text-slate-600 group-hover:text-slate-400"
+                      )}
+                    />
+                    {!compact && (
+                      <span className={isSelected ? hub.accent : ""}>{hub.shortLabel}</span>
+                    )}
+                    {isSelected && !compact && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-current opacity-50 rounded-t" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Selected hub's child routes */}
+            {selectedHub && (
+              <div className="flex-1 space-y-1 overflow-y-auto px-2 py-3">
                 {!compact && (
-                  <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                    {group}
+                  <p className="mb-2 px-2 text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">
+                    {selectedHub.label}
                   </p>
                 )}
-                <div className="space-y-1">
-                  {tabs.filter((tab) => tab.group === group).map(({ href, label, detail, icon: Icon, nested }) => {
-                    const targetPath = href.split("?")[0];
-                    const active = targetPath === "/mdt"
-                      ? path === targetPath
+                {selectedHub.tabs.map(({ href, label, detail, icon: Icon, nested }) => {
+                  const targetPath = href.split("?")[0];
+                  const active =
+                    targetPath === "/mdt"
+                      ? path === "/mdt"
                       : targetPath === "/mdt/database"
                       ? path.startsWith(targetPath) &&
                         (href.includes("tab=vehicles")
@@ -184,47 +339,75 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
                       : targetPath === "/mdt/hr"
                       ? path === targetPath
                       : path.startsWith(targetPath);
-                    return (
-                      <Link
-                        key={href}
-                        href={href}
-                        title={compact ? `${label} · ${detail}` : undefined}
-                        aria-current={active ? "page" : undefined}
+
+                  return (
+                    <Link
+                      key={href}
+                      href={href}
+                      title={compact ? `${label} · ${detail}` : undefined}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "mdt-nav-link group flex min-h-9 items-center gap-2.5 rounded border-l-2 border-transparent px-2.5 text-[13px] font-medium transition-colors",
+                        compact && "justify-center px-0",
+                        nested && !compact && "ml-3 pl-4",
+                        active
+                          ? "mdt-nav-active border-l-[#a84242] bg-white/[0.04] text-white"
+                          : "text-slate-400 hover:bg-white/[0.035] hover:text-slate-100"
+                      )}
+                    >
+                      <Icon
                         className={cn(
-                          "mdt-nav-link group flex min-h-10 items-center gap-3 rounded-md border-l-2 border-transparent px-3 text-[13px] font-medium transition-colors",
-                          compact && "justify-center px-0",
-                          nested && !compact && "ml-2 pl-5",
+                          "h-4 w-4 shrink-0",
                           active
-                              ? "mdt-nav-active border-l-[#a84242] text-white"
-                              : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-100"
+                            ? "text-neon"
+                            : "text-slate-600 group-hover:text-slate-400"
                         )}
-                      >
-                        <Icon className={cn("h-[17px] w-[17px] shrink-0", active ? "text-sky-200" : "text-slate-500 group-hover:text-slate-300")} />
-                        {!compact && <span>{label}</span>}
-                        {!compact && active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-sky-400" />}
-                      </Link>
-                    );
-                  })}
-                </div>
+                      />
+                      {!compact && <span className="truncate">{label}</span>}
+                      {!compact && active && (
+                        <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-neon animate-pulse-dot" />
+                      )}
+                    </Link>
+                  );
+                })}
               </div>
-            ))}
+            )}
           </nav>
 
-          <div className={cn("border-t border-line/80 p-3", compact && "px-2")}>
-            <div className={cn("mdt-profile-card flex items-center gap-3 rounded-md border border-line/70 p-2.5", compact && "justify-center px-1")}>
-              <span className="mdt-profile-avatar flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-xs font-bold text-slate-200">
+          {/* ── Officer profile footer ── */}
+          <div className={cn("border-t border-line/60 p-2.5", compact && "px-1.5")}>
+            <div
+              className={cn(
+                "mdt-profile-card flex items-center gap-2.5 rounded border border-line/60 p-2",
+                compact && "justify-center px-1"
+              )}
+            >
+              <span className="mdt-profile-avatar flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line text-[11px] font-bold text-slate-200">
                 {profileInitials}
               </span>
               {!compact && (
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-xs font-semibold text-slate-100">{officer.fullName}</span>
-                  <span className="mt-0.5 block truncate font-mono text-[10px] text-slate-500">{officer.rank} · #{officer.badge}</span>
+                  <span className="block truncate text-xs font-semibold text-slate-100">
+                    {officer.fullName}
+                  </span>
+                  <span className="mt-0.5 block truncate font-mono text-[10px] text-slate-500">
+                    {officer.rank} · #{officer.badge}
+                  </span>
                 </span>
               )}
-              {!compact && <Activity className={cn("h-3.5 w-3.5", officer.onDuty ? "text-emerald-400" : "text-slate-600")} />}
+              {!compact && (
+                <Activity
+                  className={cn(
+                    "h-3 w-3 shrink-0",
+                    officer.onDuty ? "text-emerald-400" : "text-slate-600"
+                  )}
+                  aria-label={officer.onDuty ? "Đang trực" : "Ngoài ca"}
+                />
+              )}
             </div>
           </div>
         </aside>
+
 
         <div className="min-w-0 flex-1">
           <header className="mdt-header sticky top-0 z-40 border-b border-line">
@@ -315,14 +498,13 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
                   <Siren className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">KHẨN CẤP</span>
                 </button>
-                <ThemeToggle compact />
                 <details className="relative md:hidden">
                   <summary className="flex h-9 cursor-pointer list-none items-center gap-1 rounded-md border border-line px-2 text-xs text-slate-300">
                     <Shield className="h-4 w-4 text-sky-300" />
                     <ChevronDown className="h-3 w-3" />
                   </summary>
                   <nav className="absolute right-0 top-11 z-50 w-56 rounded-md border border-line bg-panel p-2 shadow-2xl" aria-label="Điều hướng">
-                    {tabs.map(({ href, label, icon: Icon }) => (
+                    {visibleHubs.flatMap((hub) => hub.tabs).map(({ href, label, icon: Icon }) => (
                       <Link key={href} href={href} className="flex items-center gap-3 rounded-md px-3 py-2.5 text-xs text-slate-300 hover:bg-white/[0.05]">
                         <Icon className="h-4 w-4 text-slate-500" />
                         {label}

@@ -120,7 +120,8 @@ model Officer {
   sessionVersion      Int       @default(0)
   createdAt           DateTime  @default(now())
 
-  incidents             Incident[]
+  incidents             Incident[]               @relation("IncidentAuthor")
+  assignedIncidents     Incident[]               @relation("IncidentAssignee")
   bolos                 Bolo[]
   warrants              Warrant[]
   evidence              Evidence[]
@@ -311,7 +312,12 @@ model Incident {
   suspect     Citizen? @relation(fields: [suspectId], references: [id])
   suspectName String? // fallback nếu chưa có hồ sơ
   authorId    String
-  author      Officer  @relation(fields: [authorId], references: [id])
+  author      Officer  @relation("IncidentAuthor", fields: [authorId], references: [id])
+  assigneeId  String?
+  assignee    Officer? @relation("IncidentAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  caseStatus  InternalAffairsStatus @default(OPEN)
+  resolution  String?
+  updatedAt   DateTime @updatedAt
   totalFine   Int      @default(0)
   totalJail   Int      @default(0)
   createdAt   DateTime @default(now())
@@ -319,6 +325,9 @@ model Incident {
   charges  IncidentCharge[]
   evidence Evidence[]
   fines    FineRecord[]
+
+  @@index([caseStatus, updatedAt])
+  @@index([assigneeId, caseStatus])
 }
 
 model IncidentCharge {
