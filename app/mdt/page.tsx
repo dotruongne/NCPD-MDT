@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Megaphone, Power, Radio, Scale, Crosshair, Shield, Siren, AlertTriangle, Pin, FileText, WalletCards, ArrowUpRight, CalendarDays } from "lucide-react";
+import { Megaphone, Power, Radio, Scale, Crosshair, Shield, Siren, AlertTriangle, Pin, FileText, WalletCards, CalendarDays } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireOfficer, roleLabel } from "@/lib/auth";
+import { requireOfficer } from "@/lib/auth";
 import { Badge, Card, Empty, PageTitle, PlateBadge, StatCard } from "@/components/ui";
 import { dutyHoursInPeriod, fmtDate, money } from "@/lib/utils";
 import { SOP } from "@/lib/codes";
@@ -45,13 +45,23 @@ export default async function Dashboard() {
     <div className="mdt-dashboard space-y-5">
       <section className="dashboard-heading flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="dashboard-eyebrow mb-2 text-[10px] font-bold uppercase tracking-[0.14em]">NCPD Novaris City <span className="mx-1 opacity-50">/</span> Trung tâm điều hành</p>
-          <h1 className="dashboard-title text-2xl font-bold tracking-tight sm:text-[30px]">Bảng điều khiển</h1>
-          <p className="dashboard-copy mt-2 text-[13px]">Tình hình hoạt động, nguồn lực và thông tin trong ca trực hiện tại.</p>
+          <p className="dashboard-eyebrow mb-2 text-[10px] font-bold uppercase tracking-[0.14em]">NCPD <span className="mx-1 opacity-50">/</span> TRUNG TÂM ĐIỀU HÀNH</p>
+          <h1 className="dashboard-title text-2xl font-bold tracking-tight sm:text-[30px]">Tổng quan hoạt động</h1>
+          <p className="dashboard-copy mt-2 text-[13px]">Tình hình đơn vị, cảnh báo và công việc trong ca trực hiện tại.</p>
         </div>
-        <div className="dashboard-date inline-flex items-center gap-2 border border-line px-3 py-2 text-xs">
-          <CalendarDays className="h-4 w-4 text-slate-500" />
-          {now.toLocaleDateString("vi-VN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+        <div className="dashboard-actions flex flex-wrap items-center gap-2">
+          <div className="dashboard-date inline-flex min-h-10 items-center gap-2 border border-line px-3 py-2 text-xs">
+            <CalendarDays className="h-4 w-4 text-slate-500" aria-hidden="true" />
+            {now.toLocaleDateString("vi-VN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </div>
+          <Link href="/mdt/dispatch" className="btn btn-neon min-h-10 px-3 text-xs">
+            <Radio className="h-4 w-4" aria-hidden="true" />
+            Điều phối
+          </Link>
+          <Link href="/mdt/reports/new" className="btn min-h-10 px-3 text-xs">
+            <FileText className="h-4 w-4" aria-hidden="true" />
+            Tạo báo cáo
+          </Link>
         </div>
       </section>
 

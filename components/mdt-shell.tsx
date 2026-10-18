@@ -73,6 +73,19 @@ const TABS = [
   { group: "Tài khoản", href: "/mdt/settings", label: "Bảo mật tài khoản", detail: "Password & sessions", icon: KeyRound },
 ];
 
+function isTabActive(href: string, path: string, tab: string | null) {
+  const targetPath = href.split("?")[0];
+  if (targetPath === "/mdt") return path === targetPath;
+  if (targetPath === "/mdt/database") {
+    if (!path.startsWith(targetPath)) return false;
+    if (href.includes("tab=vehicles")) return tab === "vehicles";
+    if (href.includes("tab=evidence")) return tab === "evidence";
+    return !["vehicles", "evidence"].includes(tab ?? "");
+  }
+  if (targetPath === "/mdt/hr") return path === targetPath;
+  return path.startsWith(targetPath);
+}
+
 export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: Props) {
   const path = usePathname();
   const searchParams = useSearchParams();
@@ -146,11 +159,11 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
         <aside
           className={cn(
             "mdt-sidebar sticky top-0 hidden h-screen shrink-0 flex-col border-r border-line transition-[width] duration-200 md:flex",
-            compact ? "w-[72px]" : "w-[252px]"
+            compact ? "w-[76px]" : "w-[268px]"
           )}
         >
-          <Link href="/mdt" className={cn("mdt-wordmark flex h-[82px] items-center gap-3 border-b border-line border-t-4 border-t-[#a84242] px-5", compact && "justify-center px-2")}>
-            <span className="mdt-brand-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-500/50 text-sky-200">
+          <Link href="/mdt" className={cn("mdt-wordmark flex h-[76px] items-center gap-3 border-b border-line border-t-[3px] border-t-[#a84242] px-5", compact && "justify-center px-2")}>
+            <span className="mdt-brand-icon flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-500/50 text-sky-200">
               <Shield className="h-[19px] w-[19px]" />
             </span>
             {!compact && (
@@ -161,7 +174,7 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
             )}
           </Link>
 
-          <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5" aria-label="Điều hướng chính">
+          <nav className="mdt-navigation flex-1 space-y-5 overflow-y-auto px-3 py-5" aria-label="Điều hướng chính">
             {groups.map((group) => (
               <div key={group}>
                 {!compact && (
@@ -171,19 +184,7 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
                 )}
                 <div className="space-y-1">
                   {tabs.filter((tab) => tab.group === group).map(({ href, label, detail, icon: Icon, nested }) => {
-                    const targetPath = href.split("?")[0];
-                    const active = targetPath === "/mdt"
-                      ? path === targetPath
-                      : targetPath === "/mdt/database"
-                      ? path.startsWith(targetPath) &&
-                        (href.includes("tab=vehicles")
-                          ? searchParams.get("tab") === "vehicles"
-                          : href.includes("tab=evidence")
-                          ? searchParams.get("tab") === "evidence"
-                          : !["vehicles", "evidence"].includes(searchParams.get("tab") ?? ""))
-                      : targetPath === "/mdt/hr"
-                      ? path === targetPath
-                      : path.startsWith(targetPath);
+                    const active = isTabActive(href, path, searchParams.get("tab"));
                     return (
                       <Link
                         key={href}
@@ -228,7 +229,7 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
 
         <div className="min-w-0 flex-1">
           <header className="mdt-header sticky top-0 z-40 border-b border-line">
-            <div className="mdt-agency-bar flex min-h-[36px] items-center justify-between border-b border-line px-4 md:px-7">
+            <div className="mdt-agency-bar flex min-h-[34px] items-center justify-between border-b border-line px-4 md:px-7">
               <div className="flex items-center gap-2">
                 <Shield className="h-3.5 w-3.5 text-sky-700" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.12em]">Novaris City</span>
@@ -236,7 +237,7 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
               </div>
               <span className="hidden text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:inline">Hệ thống quản lý và điều phối nghiệp vụ</span>
             </div>
-            <div className="flex min-h-[68px] items-center justify-between gap-3 px-4 md:px-7">
+            <div className="mdt-toolbar flex min-h-[68px] items-center justify-between gap-3 px-4 md:px-7">
               <div className="flex min-w-0 items-center gap-3">
                 <button
                   onClick={toggleCompact}
@@ -317,17 +318,28 @@ export function MdtShell({ officer, logoutAction, toggleDutyAction, children }: 
                 </button>
                 <ThemeToggle compact />
                 <details className="relative md:hidden">
-                  <summary className="flex h-9 cursor-pointer list-none items-center gap-1 rounded-md border border-line px-2 text-xs text-slate-300">
+                  <summary aria-label="Mở điều hướng" className="flex h-9 cursor-pointer list-none items-center gap-1 rounded-md border border-line px-2 text-xs text-slate-300">
                     <Shield className="h-4 w-4 text-sky-300" />
                     <ChevronDown className="h-3 w-3" />
                   </summary>
-                  <nav className="absolute right-0 top-11 z-50 w-56 rounded-md border border-line bg-panel p-2 shadow-2xl" aria-label="Điều hướng">
-                    {tabs.map(({ href, label, icon: Icon }) => (
-                      <Link key={href} href={href} className="flex items-center gap-3 rounded-md px-3 py-2.5 text-xs text-slate-300 hover:bg-white/[0.05]">
-                        <Icon className="h-4 w-4 text-slate-500" />
-                        {label}
-                      </Link>
-                    ))}
+                  <nav className="mdt-mobile-nav absolute right-0 top-11 z-50 w-64 rounded-md border border-line bg-panel p-2 shadow-2xl" aria-label="Điều hướng">
+                    {tabs.map(({ href, label, icon: Icon }) => {
+                      const active = isTabActive(href, path, searchParams.get("tab"));
+                      return (
+                        <Link
+                          key={href}
+                          href={href}
+                          aria-current={active ? "page" : undefined}
+                          className={cn(
+                            "flex min-h-10 items-center gap-3 rounded-md px-3 py-2.5 text-xs text-slate-300 hover:bg-white/[0.05]",
+                            active && "mdt-mobile-nav-active"
+                          )}
+                        >
+                          <Icon className="h-4 w-4 text-slate-500" />
+                          {label}
+                        </Link>
+                      );
+                    })}
                   </nav>
                 </details>
                 <form action={logoutAction}>
