@@ -44,13 +44,14 @@ function TerminalWelcome({
         setTimeout(() => setStep(1), 350);
         setTimeout(() => setStep(2), 750);
         setTimeout(() => {
-          router.push(redirectUrl || "/mdt");
-        }, 1200);
+          // Dùng window.location.href để browser sync full cookie session ngay lập tức, không bị kẹt hay cần login 2 lần
+          window.location.href = redirectUrl || "/mdt";
+        }, 1100);
       }
     }, 28);
 
     return () => clearInterval(interval);
-  }, [targetText, redirectUrl, router]);
+  }, [targetText, redirectUrl]);
 
   return (
     <div className="space-y-4 font-mono text-xs">
@@ -99,18 +100,18 @@ function SubmitButton() {
     <button
       type="submit"
       disabled={pending}
-      className="btn btn-neon w-full py-3 text-xs font-mono font-bold tracking-wider shadow-neon flex items-center justify-center gap-2 group disabled:cursor-wait"
+      className="w-full py-3 px-4 rounded-md text-xs font-mono font-bold tracking-wider bg-sky-500 hover:bg-sky-400 text-slate-950 transition-all duration-150 shadow-[0_0_20px_rgba(14,165,233,0.4)] flex items-center justify-center gap-2 group disabled:opacity-70 disabled:cursor-wait active:scale-[0.99] cursor-pointer"
     >
       {pending ? (
         <>
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-sky-300/40 border-t-sky-300" />
-          <span>ĐANG XÁC THỰC DANH TÍNH...</span>
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-950/40 border-t-slate-950" />
+          <span className="text-slate-950 font-black">ĐANG XÁC THỰC DANH TÍNH...</span>
         </>
       ) : (
         <>
-          <Terminal className="h-4 w-4 text-neon" />
-          <span>XÁC THỰC & MỞ PHIÊN TÁC CHIẾN</span>
-          <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
+          <Terminal className="h-4 w-4 text-slate-950 stroke-[2.5]" />
+          <span className="text-slate-950 font-black">XÁC THỰC & MỞ PHIÊN TÁC CHIẾN</span>
+          <ArrowRight className="h-4 w-4 text-slate-950 stroke-[2.5] transition-transform group-hover:translate-x-1" />
         </>
       )}
     </button>

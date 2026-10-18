@@ -1,3 +1,6 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { Shield, Radio, Activity, Cpu } from "lucide-react";
 
 export function NcpdLoading({
@@ -5,6 +8,23 @@ export function NcpdLoading({
 }: {
   detail?: string;
 }) {
+  const [progress, setProgress] = useState(1);
+
+  useEffect(() => {
+    const startTime = Date.now();
+    const duration = 1400; // 1.4s smooth animation from 1% to 100%
+
+    const timer = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const pct = Math.min(100, Math.max(1, Math.floor((elapsed / duration) * 100)));
+      setProgress(pct);
+      if (pct >= 100) {
+        clearInterval(timer);
+      }
+    }, 16);
+
+    return () => clearInterval(timer);
+  }, []);
   return (
     <main
       className="min-h-screen bg-[#060a12] text-slate-200 flex flex-col items-center justify-center p-4 relative overflow-hidden select-none font-mono"
@@ -80,11 +100,16 @@ export function NcpdLoading({
               <Activity className="h-3 w-3 text-sky-400 animate-pulse" />
               <span>DỮ LIỆU TÁC CHIẾN ĐANG NẠP...</span>
             </span>
-            <span className="text-sky-300 font-bold">100% SECURED</span>
+            <span className="text-sky-300 font-bold font-mono tracking-wider">
+              {progress}% {progress === 100 ? "SECURED" : "SYNCING"}
+            </span>
           </div>
 
-          <div className="w-full h-1.5 bg-[#070e17] rounded-full overflow-hidden border border-[#1b2b3e] relative">
-            <div className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-sky-500 via-sky-300 to-emerald-400 rounded-full w-full animate-[pulse_1.5s_ease-in-out_infinite]" />
+          <div className="w-full h-2 bg-[#070e17] rounded-full overflow-hidden border border-[#1b2b3e] relative p-0.5">
+            <div
+              className="h-full bg-gradient-to-r from-sky-500 via-sky-300 to-emerald-400 rounded-full transition-all duration-75 shadow-[0_0_12px_rgba(56,189,248,0.6)]"
+              style={{ width: `${progress}%` }}
+            />
           </div>
         </div>
 
