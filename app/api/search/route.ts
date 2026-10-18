@@ -1,12 +1,22 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getOfficer } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 // Global search (Ctrl+K): công dân theo Tên/Căn cước/SĐT, xe theo biển số.
 export async function GET(req: Request) {
   const officer = await getOfficer();
   if (!officer || officer.mustChangePassword) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  // Rate limit: tối đa 40 lượt tìm kiếm trong 60 giây cho mỗi sĩ quan
+  const limitResult = rateLimit(`search:officer:${officer.id}`, { limit: 40, windowSeconds: 60 });
+  if (!limitResult.success) {
+    return NextResponse.json(
+      { error: "rate_limited", message: `Thao tác tìm kiếm quá nhanh. Thử lại sau ${limitResult.resetSeconds}s` },
+      { status: 429 }
+    );
   }
 
   const q = new URL(req.url).searchParams.get("q")?.trim() ?? "";

@@ -1,9 +1,11 @@
 "use server";
 
 import bcrypt from "bcryptjs";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { createSession, destroySession } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 export type LoginState = {
   error?: string;
@@ -17,8 +19,31 @@ export type LoginState = {
 } | null;
 
 export async function login(_: LoginState, fd: FormData): Promise<LoginState> {
+  const reqHeaders = headers();
+  const forwarded = reqHeaders.get("x-forwarded-for");
+  const ip = forwarded ? forwarded.split(",")[0].trim() : (reqHeaders.get("x-real-ip") ?? "127.0.0.1");
+
+  // Giới hạn 10 lần thử đăng nhập trong 1 phút cho mỗi địa chỉ IP
+  const ipLimit = rateLimit(`login:ip:${ip}`, { limit: 10, windowSeconds: 60 });
+  if (!ipLimit.success) {
+    return {
+      error: `Bạn đã thao tác quá nhanh. Vui lòng chờ ${ipLimit.resetSeconds} giây trước khi thử lại.`,
+    };
+  }
+
   const username = String(fd.get("username") ?? "").trim().toLowerCase();
   const password = String(fd.get("password") ?? "");
+
+  // Giới hạn 5 lần thử đăng nhập cho cùng 1 username trong 60 giây (chống brute force 1 tài khoản)
+  if (username) {
+    const userLimit = rateLimit(`login:user:${username}`, { limit: 5, windowSeconds: 60 });
+    if (!userLimit.success) {
+      return {
+        error: `Tài khoản ${username} đang bị tạm khóa thao tác do nhập sai liên tục. Vui lòng chờ ${userLimit.resetSeconds} giây.`,
+      };
+    }
+  }
+
   const officer = await db.officer.findUnique({ where: { username } });
   const ok = await bcrypt.compare(password, officer?.passwordHash ?? "$2a$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidi");
   const now = new Date();
