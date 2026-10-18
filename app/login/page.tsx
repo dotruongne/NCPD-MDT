@@ -2,21 +2,96 @@
 
 import { useFormState, useFormStatus } from "react-dom";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import {
   Shield,
   Lock,
   User,
-  ShieldAlert,
   Radio,
   Terminal,
   Activity,
   ArrowRight,
-  Wifi,
   ChevronRight,
   AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
-import { login } from "./actions";
+import { login, type LoginState } from "./actions";
 import { ToastOnChange } from "@/components/toast-provider";
+
+function TerminalWelcome({
+  officer,
+  redirectUrl,
+}: {
+  officer?: { fullName: string; badge: string; rank: string };
+  redirectUrl?: string;
+}) {
+  const router = useRouter();
+  const [typedWelcome, setTypedWelcome] = useState("");
+  const [step, setStep] = useState(0); // 0: typing welcome, 1: auth ok, 2: redirecting
+
+  const targetText = officer?.fullName
+    ? `Chào mừng trở lại, ${officer.rank ? `[${officer.rank}] ` : ""}${officer.fullName} #${officer.badge || ""}`
+    : "Chào mừng trở lại, Sĩ quan NCPD";
+
+  useEffect(() => {
+    let currentIdx = 0;
+    const interval = setInterval(() => {
+      currentIdx++;
+      setTypedWelcome(targetText.slice(0, currentIdx));
+      if (currentIdx >= targetText.length) {
+        clearInterval(interval);
+        setTimeout(() => setStep(1), 350);
+        setTimeout(() => setStep(2), 750);
+        setTimeout(() => {
+          router.push(redirectUrl || "/mdt");
+        }, 1200);
+      }
+    }, 28);
+
+    return () => clearInterval(interval);
+  }, [targetText, redirectUrl, router]);
+
+  return (
+    <div className="space-y-4 font-mono text-xs">
+      <div className="flex items-center gap-2 border border-emerald-500/30 bg-emerald-950/20 px-3.5 py-2 rounded text-emerald-400">
+        <CheckCircle2 className="h-4 w-4 animate-pulse shrink-0" />
+        <span className="font-bold tracking-wider">XÁC THỰC DANH TÍNH THÀNH CÔNG // ACCESS GRANTED</span>
+      </div>
+
+      <div className="rounded border border-[#1e2e42] bg-[#070d18] p-4 space-y-2.5 text-slate-300">
+        <div className="flex items-start gap-2 text-sky-400">
+          <span className="text-sky-500 font-bold select-none">&gt;</span>
+          <span className="font-semibold text-white tracking-wide">
+            {typedWelcome}
+            <span className="inline-block w-2 h-4 ml-1 bg-sky-400 animate-pulse align-middle" />
+          </span>
+        </div>
+
+        {step >= 1 && (
+          <div className="flex items-center gap-2 text-[11px] text-emerald-400/90 pl-3 border-l-2 border-emerald-500/40 animate-fade-in">
+            <span className="text-slate-500">&gt;</span>
+            <span>KHỞI TẠO PHIÊN TÁC CHIẾN CAD/MDT... [OK]</span>
+          </div>
+        )}
+
+        {step >= 2 && (
+          <div className="flex items-center gap-2 text-[11px] text-sky-400/90 pl-3 border-l-2 border-sky-500/40 animate-fade-in">
+            <span className="text-slate-500">&gt;</span>
+            <span className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-sky-400 animate-ping" />
+              ĐANG ĐIỀU HƯỚNG VÀO HỆ THỐNG ĐIỀU HÀNH TRUNG TÂM...
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="text-center font-mono text-[10px] text-slate-500 animate-pulse">
+        VUI LÒNG ĐỢI TRONG GIÂY LÁT...
+      </div>
+    </div>
+  );
+}
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -156,54 +231,70 @@ export default function LoginPage() {
 
               {/* Form Content */}
               <div className="p-6 sm:p-7 space-y-5">
-                {/* Status indicator bar */}
-                <div className="flex items-center justify-between border border-[#1e2e42] bg-[#08101a] px-3.5 py-2 rounded text-xs font-mono">
-                  <span className="flex items-center gap-2 text-slate-300 text-[11px]">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                    GATEWAY ONLINE
-                  </span>
-                  <span className="text-slate-500 text-[10px]">MD5/TLS 1.3</span>
-                </div>
-
-                <form action={action} className="space-y-4">
-                  <div>
-                    <label className="block text-[11px] font-mono font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                      Tài khoản sĩ quan (Username)
-                    </label>
-                    <div className="relative">
-                      <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                      <input
-                        name="username"
-                        className="input font-mono pl-10 text-xs py-2.5 bg-[#070d18] border-[#253648] text-white focus:border-sky-400 placeholder:text-slate-600 rounded"
-                        placeholder="Nhập tên đăng nhập tuần tra..."
-                        autoComplete="username"
-                        required
-                        autoFocus
-                      />
+                {state?.success ? (
+                  <TerminalWelcome
+                    officer={state.officer}
+                    redirectUrl={state.redirectUrl}
+                  />
+                ) : (
+                  <>
+                    {/* Status indicator bar */}
+                    <div className="flex items-center justify-between border border-[#1e2e42] bg-[#08101a] px-3.5 py-2 rounded text-xs font-mono">
+                      <span className="flex items-center gap-2 text-slate-300 text-[11px]">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                        GATEWAY ONLINE
+                      </span>
+                      <span className="text-slate-500 text-[10px]">MD5/TLS 1.3</span>
                     </div>
-                  </div>
 
-                  <div>
-                    <label className="block text-[11px] font-mono font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                      Mật khẩu bảo mật (Password)
-                    </label>
-                    <div className="relative">
-                      <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                      <input
-                        name="password"
-                        type="password"
-                        className="input font-mono pl-10 text-xs py-2.5 bg-[#070d18] border-[#253648] text-white focus:border-sky-400 placeholder:text-slate-600 rounded"
-                        placeholder="Nhập mật khẩu..."
-                        autoComplete="current-password"
-                        required
-                      />
-                    </div>
-                  </div>
+                    <form action={action} className="space-y-4">
+                      <div>
+                        <label className="block text-[11px] font-mono font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                          Tài khoản sĩ quan (Username)
+                        </label>
+                        <div className="relative">
+                          <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                          <input
+                            name="username"
+                            className="input font-mono pl-10 text-xs py-2.5 bg-[#070d18] border-[#253648] text-white focus:border-sky-400 placeholder:text-slate-600 rounded"
+                            placeholder="Nhập tên đăng nhập tuần tra..."
+                            autoComplete="username"
+                            required
+                            autoFocus
+                          />
+                        </div>
+                      </div>
 
-                  <div className="pt-2">
-                    <SubmitButton />
-                  </div>
-                </form>
+                      <div>
+                        <label className="block text-[11px] font-mono font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                          Mật khẩu bảo mật (Password)
+                        </label>
+                        <div className="relative">
+                          <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+                          <input
+                            name="password"
+                            type="password"
+                            className="input font-mono pl-10 text-xs py-2.5 bg-[#070d18] border-[#253648] text-white focus:border-sky-400 placeholder:text-slate-600 rounded"
+                            placeholder="Nhập mật khẩu..."
+                            autoComplete="current-password"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      {/* Tactical Terminal Console Line */}
+                      <div className="rounded border border-[#1e2e42] bg-[#070d18] px-3 py-2 text-[11px] font-mono text-slate-400 flex items-center gap-2">
+                        <span className="text-sky-400 font-bold">&gt;</span>
+                        <span className="text-slate-500">Chờ lệnh xác thực thông tin...</span>
+                        <span className="inline-block w-1.5 h-3 bg-sky-400/70 animate-pulse ml-auto" />
+                      </div>
+
+                      <div className="pt-2">
+                        <SubmitButton />
+                      </div>
+                    </form>
+                  </>
+                )}
 
                 <ToastOnChange
                   eventKey={state}

@@ -5,7 +5,18 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { createSession, destroySession } from "@/lib/auth";
 
-export async function login(_: { error?: string } | null, fd: FormData) {
+export type LoginState = {
+  error?: string;
+  success?: boolean;
+  officer?: {
+    fullName: string;
+    badge: string;
+    rank: string;
+  };
+  redirectUrl?: string;
+} | null;
+
+export async function login(_: LoginState, fd: FormData): Promise<LoginState> {
   const username = String(fd.get("username") ?? "").trim().toLowerCase();
   const password = String(fd.get("password") ?? "");
   const officer = await db.officer.findUnique({ where: { username } });
@@ -40,8 +51,16 @@ export async function login(_: { error?: string } | null, fd: FormData) {
     });
   }
   await createSession(officer.id);
-  if (officer.mustChangePassword) redirect("/first-login-password");
-  redirect("/mdt");
+  const redirectUrl = officer.mustChangePassword ? "/first-login-password" : "/mdt";
+  return {
+    success: true,
+    officer: {
+      fullName: officer.fullName,
+      badge: officer.badge,
+      rank: officer.rank,
+    },
+    redirectUrl,
+  };
 }
 
 export async function logout() {
